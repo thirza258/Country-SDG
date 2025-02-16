@@ -54,17 +54,24 @@ The Sustainable Development Goals (SDGs) are a collection of 17 global goals set
     pip install -r requirements.txt
     ```
 
-5. **Apply the migrations:**
+5. **Create a `.env` file in the root directory of the project and add the following environment variables:**
+    ```
+    SECRET_KEY=your_secret_key
+    NEWS_API_KEY=your_news_api_key
+    ```
+    Replace `your_secret_key` with a secret key for your Django project and `your_news_api_key` with an API key from the News API.
+
+6. **Apply the migrations:**
     ```bash
     python manage.py migrate
     ```
 
-6. **Run the development server:**
+7. **Run the development server:**
     ```bash
     python manage.py runserver
     ```
 
-7. **Open your web browser and visit:**
+8. **Open your web browser and visit:**
     ```
     http://127.0.0.1:8000/
     ```
