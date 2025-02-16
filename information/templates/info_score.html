@@ -1,0 +1,263 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UN SDG</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+  </head>
+  <body>
+    <nav>
+      <div class="nav-container">
+        <h1 class="nav-title">UN SDG Information</h1>
+
+        <form id="search-form" class="nav-form">
+          <select
+            name="country_name"
+            id="country-select"
+            title="Select a Country"
+          >
+            <option value="">Select a Country</option>
+            {% for country in all_countries %}
+            <option value="{{ country }}">{{ country }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">Search</button>
+        </form>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="container">
+        <h2>What is SDG?</h2>
+        <p>
+          The Sustainable Development Goals (SDGs) are a collection of 17 global
+          goals set by the United Nations in 2015 to achieve a better and more
+          sustainable future for all.
+        </p>
+      </div>
+      {% for sdg in landing_data %}
+      <div class="sdg-card">
+        <img
+          src="{% static 'assets/' %}{{ sdg.image }}"
+          alt="{{ sdg.title }}"
+        />
+        <div class="sdg-text">
+          <h2 class="sdg-title">{{ sdg.title }}</h2>
+          <p class="sdg-description">{{ sdg.description }}</p>
+        </div>
+        <div class="sdg-score">
+          <span>{{ sdg.score }}</span>
+        </div>
+      </div>
+      {% endfor %}
+
+      <h2>AI Opinion on Country SDG based on the score</h2>
+      <p>{{ai_response}}</p>
+
+      <h1>SDG Score Visualization from {{ country_name }}</h1>
+      <div class="chart-container"></div>
+
+      <h1>Some News for {{ country_name }}</h1>
+      {% for news in relevant_news %}
+      <div class="news-card" onclick="window.open('{{ news.url }}', '_blank')">
+        <img src="{{ news.image }}" alt="{{ news.title }}"
+        onerror="this.onerror=null; this.src='{% static
+        "assets/E-WEB-Goal-01.png" %}';" />
+        <div class="news-text">
+          <h2 class="news-title">{{ news.title }}</h2>
+          <p class="news-description">{{ news.description }}</p>
+        </div>
+        <div class="news-source">
+          <span>{{ news.source }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+
+    <footer>
+      <div class="container">
+        <div class="footer-content">
+          <div class="footer-section about">
+            <h2>About Us</h2>
+            <p>
+              We are committed to promoting the United Nations Sustainable
+              Development Goals (SDGs) to achieve a better and more sustainable
+              future for all.
+            </p>
+          </div>
+          <div class="footer-section contact">
+            <h2>Contact Us</h2>
+            <p>Email: info@unsdg.org</p>
+            <p>Phone: +123 456 7890</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document
+        .getElementById("search-form")
+        .addEventListener("submit", function (event) {
+          event.preventDefault(); // Prevent default form submission
+          let selectedCountry = document.getElementById("country-select").value;
+          if (selectedCountry) {
+            window.location.href =
+              "/info_score/" + encodeURIComponent(selectedCountry);
+          } else {
+            alert("Please select a country.");
+          }
+        });
+      // Parse JSON data from Django template
+      const sdgData = JSON.parse("{{ sdg_data|escapejs }}");
+      const goalColumns = JSON.parse("{{ goal_columns|escapejs }}");
+
+      // Convert year to numbers
+      sdgData.forEach((d) => (d.year = +d.year));
+
+      // Define dimensions
+      const width = 600,
+        height = 300,
+        margin = { top: 40, right: 50, bottom: 50, left: 60 };
+
+      // Define color scale
+      const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+      // Select container
+      const container = d3.select(".chart-container");
+
+      goalColumns.forEach((goal, index) => {
+        // Create a separate div for each chart to prevent overlap
+        const chartDiv = container
+          .append("div")
+          .attr("class", "chart-row")
+          .style("margin-bottom", "50px") // Add spacing between charts
+          .style("width", "100%")
+          .style("display", "flex")
+          .style("justify-content", "center"); // Center the chart
+
+        const svg = chartDiv
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        // X and Y scales
+        const x = d3
+          .scaleLinear()
+          .domain(d3.extent(sdgData, (d) => d.year))
+          .range([0, width]);
+
+        const y = d3
+          .scaleLinear()
+          .domain([0, d3.max(sdgData, (d) => +d[goal])])
+          .range([height, 0]);
+
+        // Line generator
+        const line = d3
+          .line()
+          .x((d) => x(d.year))
+          .y((d) => y(+d[goal]))
+          .curve(d3.curveMonotoneX); // Smooth line
+
+        // X Axis
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d")))
+          .selectAll("text")
+          .style("font-size", "10px")
+          .attr("transform", "rotate(45)")
+          .attr("text-anchor", "end");
+
+        // Y Axis
+        svg.append("g").call(d3.axisLeft(y).ticks(5));
+
+        // Draw Line with Animation
+        const path = svg
+          .append("path")
+          .datum(sdgData)
+          .attr("fill", "none")
+          .attr("stroke", colorScale(index))
+          .attr("stroke-width", 2)
+          .attr("d", line);
+
+        const totalLength = path.node().getTotalLength();
+
+        path
+          .attr("stroke-dasharray", totalLength + " " + totalLength)
+          .attr("stroke-dashoffset", totalLength)
+          .transition()
+          .duration(2000)
+          .ease(d3.easeLinear)
+          .attr("stroke-dashoffset", 0);
+
+        // Tooltip
+        const tooltip = container
+          .append("div")
+          .attr("class", "tooltip")
+          .style("opacity", 0)
+          .style("position", "absolute")
+          .style("background", "rgba(0,0,0,0.7)")
+          .style("color", "white")
+          .style("padding", "5px")
+          .style("border-radius", "5px");
+
+        // Points on the line
+        svg
+          .selectAll(".dot")
+          .data(sdgData)
+          .enter()
+          .append("circle")
+          .attr("class", "dot")
+          .attr("cx", (d) => x(d.year))
+          .attr("cy", (d) => y(+d[goal]))
+          .attr("r", 4)
+          .attr("fill", colorScale(index))
+          .on("mouseover", function (event, d) {
+            tooltip
+              .style("opacity", 1)
+              .html(`Year: ${d.year}<br>${goal.replace("_", " ")}: ${d[goal]}`)
+              .style("left", event.pageX + 10 + "px")
+              .style("top", event.pageY - 20 + "px");
+          })
+          .on("mouseout", function () {
+            tooltip.style("opacity", 0);
+          });
+
+        // Title
+        svg
+          .append("text")
+          .attr("x", width / 2)
+          .attr("y", -10)
+          .attr("text-anchor", "middle")
+          .style("font-size", "16px")
+          .style("font-weight", "bold")
+          .text(goal.replace("_", " "));
+
+        // X-axis label
+        svg
+          .append("text")
+          .attr("x", width / 2)
+          .attr("y", height + 40)
+          .attr("text-anchor", "middle")
+          .style("font-size", "12px")
+          .text("Year");
+
+        // Y-axis label
+        svg
+          .append("text")
+          .attr("x", -height / 2)
+          .attr("y", -40)
+          .attr("text-anchor", "middle")
+          .attr("transform", "rotate(-90)")
+          .style("font-size", "12px")
+          .text("Score");
+      });
+    </script>
+  </body>
+</html>

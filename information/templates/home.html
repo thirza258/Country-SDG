@@ -1,0 +1,90 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UN SDG</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+  </head>
+  <body>
+    <nav>
+      <div class="nav-container">
+        <h1 class="nav-title">UN SDG Information</h1>
+
+        <form id="search-form" class="nav-form">
+          <select
+            name="country_name"
+            id="country-select"
+            title="Select a Country"
+          >
+            <option value="">Select a Country</option>
+            {% for country in all_countries %}
+            <option value="{{ country }}">{{ country }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">Search</button>
+        </form>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="container">
+        <h2>What is SDG?</h2>
+        <p>
+          The Sustainable Development Goals (SDGs) are a collection of 17 global
+          goals set by the United Nations in 2015 to achieve a better and more
+          sustainable future for all.
+        </p>
+      </div>
+      {% for sdg in landing_data %}
+      <div class="sdg-card">
+        <img
+          src="{% static 'assets/' %}{{ sdg.image }}"
+          alt="{{ sdg.title }}"
+        />
+        <div class="sdg-text">
+          <h2 class="sdg-title">{{ sdg.title }}</h2>
+          <p class="sdg-description">{{ sdg.description }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+
+    <footer>
+      <div class="container">
+        <div class="footer-content">
+          <div class="footer-section about">
+            <h2>About Us</h2>
+            <p>
+              We are committed to promoting the United Nations Sustainable
+              Development Goals (SDGs) to achieve a better and more sustainable
+              future for all.
+            </p>
+          </div>
+          <div class="footer-section contact">
+            <h2>Contact Us</h2>
+            <p>Email: info@unsdg.org</p>
+            <p>Phone: +123 456 7890</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document
+        .getElementById("search-form")
+        .addEventListener("submit", function (event) {
+          event.preventDefault(); // Prevent default form submission
+          let selectedCountry = document.getElementById("country-select").value;
+          if (selectedCountry) {
+            window.location.href =
+              "/info_score/" + encodeURIComponent(selectedCountry);
+          } else {
+            alert("Please select a country.");
+          }
+        });
+    </script>
+  </body>
+</html>
