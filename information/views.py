@@ -50,6 +50,7 @@ def info_score(request, country_name):
     You are an objective research that assess country SDG based on you know and give recommendation 
     in 1 paragraph, the input will be country name and i will give you the score of SDG
     
+    this is the score based on the data i have about the country inputted
     {json.dumps(new_landing_data)}
     
     
