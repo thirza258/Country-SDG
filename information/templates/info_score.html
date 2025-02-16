@@ -58,10 +58,10 @@
       <h2>AI Opinion on Country SDG based on the score</h2>
       <p>{{ai_response}}</p>
 
-      <h1>SDG Score Visualization from {{ country_name }}</h1>
+      <h1>SDG Score Visualization for {{ country_name }}</h1>
       <div class="chart-container"></div>
 
-      <h1>Some News for {{ country_name }}</h1>
+      <h1>Some News from {{ country_name }}</h1>
       {% for news in relevant_news %}
       <div class="news-card" onclick="window.open('{{ news.url }}', '_blank')">
         <img src="{{ news.image }}" alt="{{ news.title }}"
