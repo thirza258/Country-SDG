@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ profile.name }} &mdash; SDG profile{% endblock %}
+{% block description %}How {{ profile.name }} performs on each of the 17 Sustainable Development Goals, with rankings and trends from {{ profile.index_first_year }} to {{ profile.index_latest_year }}.{% endblock %}
+
+{% block content %}
+<section class="wrap country-head">
+  <p class="crumbs"><a href="{% url 'home' %}">All countries</a> <span>/</span> {{ profile.name }}</p>
+
+  <div class="country-headline">
+    <div>
+      <h1>{{ profile.name }}</h1>
+      <p class="country-meta">
+        {% if profile.is_aggregate %}
+          <span class="tag">Aggregate group</span>
+          Averaged across the countries in this group, not a single country.
+        {% else %}
+          <span class="tag">{{ profile.region_name }}</span>
+          <span class="muted">{{ profile.code }}</span>
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="score-block">
+      <span class="score-value">{{ profile.snapshot.score|default:"&mdash;" }}</span>
+      <span class="score-caption">{{ profile.snapshot.label }}<br /><small>0&ndash;100, higher is better</small></span>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    {% if profile.snapshot.rank %}
+    <div class="stat">
+      <span class="stat-value">#{{ profile.snapshot.rank }}</span>
+      <span class="stat-label">of {{ profile.snapshot.of }} countries worldwide</span>
+    </div>
+    {% endif %}
+    {% if profile.region_rank %}
+    <div class="stat">
+      <span class="stat-value">#{{ profile.region_rank }}</span>
+      <span class="stat-label">of {{ profile.region_of }} in {{ profile.region_name }}</span>
+    </div>
+    {% endif %}
+    {% if profile.index_change_since_baseline is not None %}
+    <div class="stat">
+      <span class="stat-value {% if profile.index_change_since_baseline > 0 %}up{% elif profile.index_change_since_baseline < 0 %}down{% endif %}">
+        {% if profile.index_change_since_baseline > 0 %}+{% endif %}{{ profile.index_change_since_baseline }}
+      </span>
+      <span class="stat-label">
+        points since {{ profile.baseline_year }}, when the goals were adopted
+        ({{ profile.index_baseline_score }} &rarr; {{ profile.index_latest_score }})
+      </span>
+    </div>
+    {% endif %}
+    {% if profile.index_change is not None %}
+    <div class="stat">
+      <span class="stat-value {% if profile.index_change > 0 %}up{% elif profile.index_change < 0 %}down{% endif %}">
+        {% if profile.index_change > 0 %}+{% endif %}{{ profile.index_change }}
+      </span>
+      <span class="stat-label">points since {{ profile.index_first_year }} ({{ profile.index_first_score }} &rarr; {{ profile.index_latest_score }})</span>
+    </div>
+    {% endif %}
+    {% if profile.region_mean %}
+    <div class="stat">
+      <span class="stat-value">{{ profile.region_mean }}</span>
+      <span class="stat-label">average of the {{ profile.region_count }} countries in {{ profile.region_name }}</span>
+    </div>
+    {% endif %}
+    {% if not profile.is_aggregate %}
+    <div class="stat">
+      <span class="stat-value">{{ profile.goals_assessed }}<small>/17</small></span>
+      <span class="stat-label">goals assessed in the {{ profile.snapshot.year }} data</span>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="wrap panel">
+  <div class="panel-head">
+    <h2>SDG Index score, {{ profile.index_first_year }}&ndash;{{ profile.index_latest_year }}</h2>
+    <p class="muted">
+      The overall index for {{ profile.name }}{% if profile.region_name %}, against its region and the world{% else %}, against the world{% endif %}.
+    </p>
+  </div>
+  <figure class="chart" data-chart="index-trend" data-height="320"></figure>
+</section>
+
+{% if profile.strongest or profile.weakest or profile.most_improved %}
+<section class="wrap highlight-grid">
+  {% if profile.strongest %}
+  <article class="highlight">
+    <h2>Highest scoring goals</h2>
+    <p class="muted">
+      Where {{ profile.name }} is closest to the targets behind the goal, in the
+      {{ profile.snapshot.year }} data.
+    </p>
+    <ol class="ranked">
+      {% for goal in profile.strongest %}
+      <li>
+        <span class="dot" style="background: {{ goal.color }}"></span>
+        <a href="{% url 'goal' goal.number %}">{{ goal.number }}. {{ goal.title }}</a>
+        <b>{{ goal.score }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+  {% endif %}
+
+  {% if profile.weakest %}
+  <article class="highlight">
+    <h2>Lowest scoring goals</h2>
+    <p class="muted">
+      Where the greatest distance is left to cover, in the {{ profile.snapshot.year }} data.
+    </p>
+    <ol class="ranked">
+      {% for goal in profile.weakest %}
+      <li>
+        <span class="dot" style="background: {{ goal.color }}"></span>
+        <a href="{% url 'goal' goal.number %}">{{ goal.number }}. {{ goal.title }}</a>
+        <b>{{ goal.score }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+  {% endif %}
+
+  {% if profile.most_improved %}
+  <article class="highlight">
+    <h2>Most progress since {{ profile.baseline_year }}</h2>
+    <p class="muted">Largest gain in goal score since the goals were adopted.</p>
+    <ol class="ranked">
+      {% for goal in profile.most_improved %}
+      <li>
+        <span class="dot" style="background: {{ goal.color }}"></span>
+        <a href="{% url 'goal' goal.number %}">{{ goal.number }}. {{ goal.title }}</a>
+        <b class="up">+{{ goal.change_since_baseline }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+  {% endif %}
+
+  {% if profile.most_declined %}
+  <article class="highlight">
+    <h2>Went backwards</h2>
+    <p class="muted">Goals scoring lower than they did in {{ profile.baseline_year }}.</p>
+    <ol class="ranked">
+      {% for goal in profile.most_declined %}
+      <li>
+        <span class="dot" style="background: {{ goal.color }}"></span>
+        <a href="{% url 'goal' goal.number %}">{{ goal.number }}. {{ goal.title }}</a>
+        <b class="down">{{ goal.change_since_baseline }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="wrap panel">
+  <div class="panel-head">
+    <h2>All 17 goals</h2>
+    <p class="muted">
+      Each card shows the {{ profile.snapshot.year }} score, where it sits among the countries
+      assessed on that goal, and how the score has moved since {{ profile.baseline_year }}.
+      {% if profile.not_assessed %}
+        {{ profile.not_assessed|length }} goal{{ profile.not_assessed|pluralize }} not assessed for {{ profile.name }}.
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="goal-grid">
+    {% for goal in profile.goals %}
+    <article class="goal-card{% if not goal.assessed %} is-missing{% endif %}" style="--goal: {{ goal.color }}">
+      <header class="goal-card-head">
+        <img src="{% static goal.image %}" alt="" width="56" height="56" />
+        <div>
+          <p class="goal-number">Goal {{ goal.number }}</p>
+          <h3><a href="{% url 'goal' goal.number %}">{{ goal.title }}</a></h3>
+        </div>
+        <div class="goal-score">
+          {% if goal.assessed %}{{ goal.score }}{% else %}<span class="na">n/a</span>{% endif %}
+        </div>
+      </header>
+
+      <p class="goal-desc">{{ goal.description }}</p>
+
+      {% if goal.assessed %}
+      <div class="meter" role="img" aria-label="Score {{ goal.score }} out of 100">
+        <div class="meter-fill" style="width: {{ goal.score }}%"></div>
+        {% if goal.region_mean %}<span class="meter-mark region" style="left: {{ goal.region_mean }}%" title="{{ profile.region_name }} average {{ goal.region_mean }}"></span>{% endif %}
+        {% if goal.global_mean %}<span class="meter-mark world" style="left: {{ goal.global_mean }}%" title="All-country average {{ goal.global_mean }}"></span>{% endif %}
+      </div>
+
+      <ul class="goal-facts">
+        {% if goal.rank %}<li><b>#{{ goal.rank }}</b> of {{ goal.of }} countries</li>{% endif %}
+        {% if goal.region_rank %}<li><b>#{{ goal.region_rank }}</b> of {{ goal.region_of }} in region</li>{% endif %}
+        {% if goal.band_label %}<li class="band band-{{ goal.band }}">{{ goal.band_label }}</li>{% endif %}
+        {% if goal.change_since_baseline is not None %}
+        <li class="{{ goal.trend }}">
+          {% if goal.change_since_baseline > 0 %}+{% endif %}{{ goal.change_since_baseline }} since {{ profile.baseline_year }}
+        </li>
+        {% endif %}
+      </ul>
+
+      <figure class="sparkline" data-spark="{{ goal.number }}" data-color="{{ goal.color }}"></figure>
+      {% else %}
+      <p class="not-assessed">
+        {% if goal.not_applicable %}
+        Not applicable: this goal is {{ goal.not_applicable }}, so {{ profile.name }} has no score.
+        {% else %}
+        Not assessed for {{ profile.name }} in this dataset &mdash; there is no score to report,
+        which is different from scoring zero.
+        {% endif %}
+      </p>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+
+  {% if profile.region_name %}
+  <p class="legend">
+    <span class="key key-fill"></span> {{ profile.name }}
+    <span class="key key-region"></span> {{ profile.region_name }} average
+    <span class="key key-world"></span> all-country average
+    <span class="muted">&mdash; both taken over the countries assessed on each goal</span>
+  </p>
+  {% endif %}
+</section>
+
+{% if commentary %}
+<section class="wrap panel">
+  <div class="panel-head">
+    <h2>Summary</h2>
+    <p class="muted">Written by a language model from the scores above. Treat it as a reading of the table, not as a source.</p>
+  </div>
+  <div class="commentary">{{ commentary|linebreaks }}</div>
+</section>
+{% endif %}
+
+{% if news %}
+<section class="wrap panel">
+  <div class="panel-head">
+    <h2>Recent coverage</h2>
+    <p class="muted">Headlines mentioning {{ profile.name }} alongside sustainable development topics.</p>
+  </div>
+  <div class="news-grid">
+    {% for item in news %}
+    <a class="news-card" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">
+      {% if item.image %}<img src="{{ item.image }}" alt="" loading="lazy" />{% endif %}
+      <div>
+        <h3>{{ item.title }}</h3>
+        {% if item.description %}<p>{{ item.description|truncatewords:26 }}</p>{% endif %}
+        <p class="news-meta">{{ item.source }}{% if item.published %} &middot; {{ item.published }}{% endif %}</p>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="wrap panel note-panel">
+  <h2>About these numbers</h2>
+  <ul>
+    <li>
+      Goal scores run from 0 to 100 and measure distance to target: 0 is the worst outcome
+      observed and 100 means the target has been reached on the indicators behind that goal.
+      They are built to be compared across countries, not across goals.
+    </li>
+    <li>
+      The headline score is the published figure. It is the average of all 17 goals, with any
+      goal a country is not assessed on filled in at its region's average for that goal &mdash;
+      so for a country with a gap, the 17 numbers below will not average to it.
+    </li>
+    <li>
+      The headline score and rankings come from the {{ sources.report.label }}. The
+      {{ profile.index_first_year }}&ndash;{{ profile.index_latest_year }} trends come from the
+      {{ sources.index.label }}, so the two can differ slightly for the same goal.
+    </li>
+    <li>
+      Rankings cover the {{ profile.snapshot.of|default:"166" }} countries in the report.
+      World, regional and income aggregates are excluded from every ranking.
+    </li>
+    {% if profile.not_assessed %}
+    <li>
+      Not assessed for {{ profile.name }}:
+      {% for goal in profile.not_assessed %}Goal {{ goal.number }} ({{ goal.title }}{% if goal.not_applicable %}, {{ goal.not_applicable }}{% endif %}){% if not forloop.last %}; {% endif %}{% endfor %}.
+      A gap is left blank rather than filled with a zero.
+    </li>
+    {% endif %}
+    <li>
+      Comparison markers on each card are unweighted averages of the countries assessed on that
+      goal. The published regional and world aggregates are weighted differently and appear
+      only on their own profile pages.
+    </li>
+    <li>
+      Quartile labels describe position within this dataset. They are not the Sustainable
+      Development Report's own dashboard ratings, which are calculated per indicator.
+    </li>
+    <li><a href="{% url 'country_api' profile.name %}">Get this profile as JSON &rarr;</a></li>
+  </ul>
+</section>
+
+{{ chart_data|json_script:"chart-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/charts.js' %}"></script>
+<script>
+  (function () {
+    const data = JSON.parse(document.getElementById("chart-data").textContent);
+
+    SDGCharts.lineChart(document.querySelector('[data-chart="index-trend"]'), data.trend);
+
+    document.querySelectorAll("[data-spark]").forEach(function (node) {
+      const number = node.getAttribute("data-spark");
+      SDGCharts.sparkline(node, data.sparklines[number], node.getAttribute("data-color"));
+    });
+  })();
+</script>
+{% endblock %}

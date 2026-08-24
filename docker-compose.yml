@@ -1,0 +1,31 @@
+services:
+  web:
+    build: .
+    image: sdg-country-profiles
+    ports:
+      - "${HOST_PORT:-8000}:8000"
+    environment:
+      # Required in production. Generate one with:
+      #   python -c "import secrets; print(secrets.token_urlsafe(50))"
+      SECRET_KEY: ${SECRET_KEY:-change-me-before-deploying}
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-3}
+      # Optional. Leave unset and the AI summary and news sections simply
+      # do not appear; every score on the site is unaffected.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      NEWS_API_KEY: ${NEWS_API_KEY:-}
+    volumes:
+      # Django's own admin/session tables. The site's content is read-only CSV.
+      - sdg-db:/app/var
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  sdg-db:

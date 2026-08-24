@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}No match for &ldquo;{{ query }}&rdquo;{% endblock %}
+
+{% block content %}
+<section class="wrap prose">
+  <h1>Nothing here called &ldquo;{{ query }}&rdquo;</h1>
+  <p class="lede">
+    The dataset uses one fixed spelling per country, which is sometimes not the everyday one
+    &mdash; Korea, Rep. rather than South Korea, or Egypt, Arab Rep. rather than Egypt.
+  </p>
+
+  {% if suggestions %}
+  <h2>Did you mean</h2>
+  <ul class="suggestions">
+    {% for name in suggestions %}
+    <li><a href="{% url 'country' name %}">{{ name }}</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Try the search box above &mdash; it will suggest names as you type.</p>
+  {% endif %}
+
+  <p><a href="{% url 'home' %}">Back to all countries &rarr;</a></p>
+</section>
+{% endblock %}

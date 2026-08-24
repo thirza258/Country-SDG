@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}SDG {{ detail.goal.number }}: {{ detail.goal.title }} &mdash; every country ranked{% endblock %}
+{% block description %}{{ detail.goal.description }} Scores for {{ detail.assessed }} countries, with the world trend since 2000.{% endblock %}
+
+{% block content %}
+<section class="goal-hero" style="--goal: {{ detail.goal.color }}">
+  <div class="wrap goal-hero-inner">
+    <img src="{% static detail.goal.image %}" alt="Sustainable Development Goal {{ detail.goal.number }}" width="120" height="120" />
+    <div>
+      <p class="eyebrow">Goal {{ detail.goal.number }} of 17</p>
+      <h1>{{ detail.goal.title }}</h1>
+      <p class="lede">{{ detail.goal.description }}</p>
+    </div>
+  </div>
+
+  <nav class="goal-switch wrap" aria-label="Goals">
+    {% for item in goals %}
+    <a
+      href="{% url 'goal' item.number %}"
+      style="--goal: {{ item.color }}"
+      class="{% if item.number == detail.goal.number %}is-current{% endif %}"
+      title="{{ item.title }}"
+    >{{ item.number }}</a>
+    {% endfor %}
+  </nav>
+</section>
+
+<section class="wrap stat-row plain-row">
+  <div class="stat">
+    <span class="stat-value">{{ detail.world_score }}</span>
+    <span class="stat-label">world score, {{ detail.latest_year }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ detail.median }}</span>
+    <span class="stat-label">median country score, {{ detail.report_year }}</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ detail.global_mean }}</span>
+    <span class="stat-label">average across the countries assessed</span>
+  </div>
+  <div class="stat">
+    <span class="stat-value">{{ detail.assessed }}</span>
+    <span class="stat-label">countries assessed on this goal</span>
+  </div>
+  {% if detail.not_assessed %}
+  <div class="stat">
+    <span class="stat-value">{{ detail.not_assessed|length }}</span>
+    <span class="stat-label">countries not assessed</span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="wrap two-col">
+  <article class="panel">
+    <div class="panel-head">
+      <h2>World score since 2000</h2>
+      <p class="muted">The world aggregate for this goal only.</p>
+    </div>
+    <figure class="chart" data-chart="goal-trend" data-height="260"></figure>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Regional averages</h2>
+      <p class="muted">
+        Unweighted mean across the countries of each region assessed on this goal,
+        {{ detail.report_year }}.
+      </p>
+    </div>
+    <div data-chart="regions"></div>
+
+    <h3 class="subhead">How the {{ detail.assessed }} scores are spread</h3>
+    <ul class="histogram">
+      {% for bucket in detail.buckets %}
+      <li>
+        <span class="histogram-bar" style="height: {% widthratio bucket.count detail.max_bucket 100 %}%; background: {{ detail.goal.color }}" title="{{ bucket.count }} countries scoring {{ bucket.label }}"></span>
+        <span class="histogram-count">{{ bucket.count }}</span>
+        <span class="histogram-label">{{ bucket.low }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+
+<section class="wrap two-col">
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Biggest gains on this goal</h2>
+      <p class="muted">Change in goal score, {{ detail.baseline_year }}&ndash;{{ detail.latest_year }}.</p>
+    </div>
+    <ol class="league">
+      {% for row in detail.improved %}
+      <li>
+        <span class="league-rank">{{ forloop.counter }}</span>
+        <a href="{% url 'country' row.country %}">{{ row.country }}</a>
+        <span class="league-region">{{ row.first }} &rarr; {{ row.last }}</span>
+        <b class="up">+{{ row.change }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Largest falls on this goal</h2>
+      <p class="muted">Where the score is lower than it was in {{ detail.baseline_year }}.</p>
+    </div>
+    <ol class="league">
+      {% for row in detail.declined %}
+      <li>
+        <span class="league-rank">{{ forloop.counter }}</span>
+        <a href="{% url 'country' row.country %}">{{ row.country }}</a>
+        <span class="league-region">{{ row.first }} &rarr; {{ row.last }}</span>
+        <b class="{% if row.change < 0 %}down{% endif %}">{% if row.change > 0 %}+{% endif %}{{ row.change }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+</section>
+
+<section class="wrap panel">
+  <div class="panel-head">
+    <h2>Every country on Goal {{ detail.goal.number }}</h2>
+    <p class="muted">{{ detail.report_year }} scores, highest first. Ties share a rank.</p>
+  </div>
+  <label class="visually-hidden" for="goal-filter">Filter countries</label>
+  <input id="goal-filter" class="filter-input" type="search" placeholder="Filter by country or region&hellip;" />
+  <div class="table-scroll tall">
+    <table class="data-table" id="goal-table">
+      <thead>
+        <tr><th scope="col">Rank</th><th scope="col">Country</th><th scope="col">Region</th><th scope="col">Score</th></tr>
+      </thead>
+      <tbody>
+        {% for row in detail.leaderboard %}
+        <tr>
+          <td>{{ row.rank }}</td>
+          <th scope="row"><a href="{% url 'country' row.country %}">{{ row.country }}</a></th>
+          <td>{{ row.region }}</td>
+          <td>
+            <span class="cell-bar"><span style="width: {{ row.score }}%; background: {{ detail.goal.color }}"></span></span>
+            {{ row.score }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if detail.not_assessed %}
+  <details class="disclosure">
+    <summary>{{ detail.not_assessed|length }} countries are not assessed on this goal</summary>
+    <p class="muted">
+      These countries have no score for Goal {{ detail.goal.number }} in the dataset. That is not the
+      same as a score of zero, and they are excluded from the ranking and the averages above.
+      {% if detail.not_applicable %}
+      This goal is {{ detail.not_applicable }}, so the absence has a plain explanation rather than
+      being a data gap.
+      {% endif %}
+    </p>
+    <p>{% for name in detail.not_assessed %}<a href="{% url 'country' name %}">{{ name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+  </details>
+  {% endif %}
+</section>
+
+{{ chart_data|json_script:"chart-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/charts.js' %}"></script>
+<script>
+  (function () {
+    const data = JSON.parse(document.getElementById("chart-data").textContent);
+    SDGCharts.lineChart(document.querySelector('[data-chart="goal-trend"]'), data.trend);
+    SDGCharts.barChart(document.querySelector('[data-chart="regions"]'), data.regions);
+
+    const filter = document.getElementById("goal-filter");
+    const rows = Array.prototype.slice.call(document.querySelectorAll("#goal-table tbody tr"));
+    filter.addEventListener("input", function () {
+      const needle = filter.value.trim().toLowerCase();
+      rows.forEach(function (row) {
+        row.hidden = needle !== "" && row.textContent.toLowerCase().indexOf(needle) === -1;
+      });
+    });
+  })();
+</script>
+{% endblock %}

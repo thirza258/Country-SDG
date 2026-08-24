@@ -14,3 +14,9 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "unsdg.settings")
 
 application = get_wsgi_application()
+
+# Parse the CSVs while the worker is booting rather than during the first
+# request, so nobody waits for it.
+from information.analytics import get_dataset  # noqa: E402
+
+get_dataset()

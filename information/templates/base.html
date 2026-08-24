@@ -1,0 +1,99 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}SDG Country Profiles{% endblock %}</title>
+    <meta
+      name="description"
+      content="{% block description %}Sustainable Development Goal scores, rankings and 2000-2022 trends for 166 countries.{% endblock %}"
+    />
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+    <link rel="icon" href="{% static 'assets/E-WEB-Goal-13.png' %}" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="{% url 'home' %}">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>
+            <strong>SDG Country Profiles</strong>
+            <small>Sustainable Development Goals, country by country</small>
+          </span>
+        </a>
+
+        <nav class="site-nav" aria-label="Main">
+          <a href="{% url 'home' %}" {% if active == 'home' %}aria-current="page"{% endif %}>Overview</a>
+          <a href="{% url 'goal' 1 %}" {% if active == 'goals' %}aria-current="page"{% endif %}>Goals</a>
+          <a href="{% url 'about' %}" {% if active == 'about' %}aria-current="page"{% endif %}>About the data</a>
+        </nav>
+
+        <form class="country-search" action="{% url 'search' %}" method="get" role="search">
+          <label class="visually-hidden" for="country-input">Find a country</label>
+          <input
+            id="country-input"
+            name="q"
+            list="entity-list"
+            type="text"
+            autocomplete="off"
+            placeholder="Search a country&hellip;"
+            required
+          />
+          <button type="submit">View</button>
+        </form>
+      </div>
+    </header>
+
+    <datalist id="entity-list">
+      {% for name in countries %}<option value="{{ name }}"></option>{% endfor %}
+      {% for name in aggregates %}<option value="{{ name }}"></option>{% endfor %}
+    </datalist>
+
+    <main id="main">{% block content %}{% endblock %}</main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-grid">
+        <div>
+          <h2>About this site</h2>
+          <p>
+            Every figure on this site is computed from two published datasets. Nothing is
+            estimated, modelled or filled in: where a goal is not assessed for a country, it is
+            shown as not assessed rather than as a score.
+          </p>
+          <p><a href="{% url 'about' %}">How the numbers are derived &rarr;</a></p>
+        </div>
+        <div>
+          <h2>Data sources</h2>
+          <ul class="plain">
+            <li>{{ sources.report.label }} &mdash; {{ sources.report.note }}</li>
+            <li>{{ sources.index.label }} &mdash; {{ sources.index.note }}</li>
+          </ul>
+          <p class="muted">{{ sources.credit }}</p>
+        </div>
+        <div>
+          <h2>The 17 goals</h2>
+          <ul class="plain goal-links">
+            {% for goal in goals %}
+            <li>
+              <a href="{% url 'goal' goal.number %}">
+                <span class="dot" style="background: {{ goal.color }}"></span>{{ goal.number }}. {{ goal.title }}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="wrap footer-note">
+        <p>
+          The Sustainable Development Goals are a United Nations framework. This site is an
+          independent presentation of published SDG data and is not affiliated with the
+          United Nations.
+        </p>
+      </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

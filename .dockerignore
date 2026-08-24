@@ -1,0 +1,17 @@
+.git
+.gitignore
+.venv
+venv
+env
+__pycache__
+**/__pycache__
+*.py[cod]
+.env
+db.sqlite3
+staticfiles/
+data/analysis.ipynb
+.DS_Store
+**/.DS_Store
+.pytest_cache
+*.log
+README.md

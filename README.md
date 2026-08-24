@@ -1,79 +1,139 @@
-# Country SDG
+# SDG Country Profiles
 
-This is a Django project that displays information about the Sustainable Development Goals (SDGs) for different countries. The project uses data from the Sustainable Development Report and SDG Index, and also fetches news articles related to the selected country and SDGs using the News API.
+A Django site that answers one question for every country in the dataset: **how is it doing on
+each of the 17 Sustainable Development Goals?**
 
-## What is SDG?
+Every figure comes from two CSV files in `data/`. Nothing is modelled, estimated or filled in, and
+no external service is needed to produce a single score on the site.
 
-The Sustainable Development Goals (SDGs) are a collection of 17 global goals set by the United Nations General Assembly in 2015. They are part of the 2030 Agenda for Sustainable Development, which aims to end poverty, protect the planet, and ensure prosperity for all by 2030. Each goal has specific targets to be achieved over the next 15 years.
+## What the site shows
 
-## SDG Goals
+**Home** — the world SDG Index score and how it has moved since 2015 and since 2000; the world
+score on each of the 17 goals with its change since the goals were adopted; the highest and lowest
+scoring countries; the biggest gains and the biggest falls; a region table that shows the plain
+average of a region's countries next to the region's own published aggregate; and the full ranked
+list of all 166 countries, filterable.
 
-1. **No Poverty**: End poverty in all its forms everywhere.
-2. **Zero Hunger**: End hunger, achieve food security and improved nutrition, and promote sustainable agriculture.
-3. **Good Health and Well-being**: Ensure healthy lives and promote well-being for all at all ages.
-4. **Quality Education**: Ensure inclusive and equitable quality education and promote lifelong learning opportunities for all.
-5. **Gender Equality**: Achieve gender equality and empower all women and girls.
-6. **Clean Water and Sanitation**: Ensure availability and sustainable management of water and sanitation for all.
-7. **Affordable and Clean Energy**: Ensure access to affordable, reliable, sustainable, and modern energy for all.
-8. **Decent Work and Economic Growth**: Promote sustained, inclusive, and sustainable economic growth, full and productive employment, and decent work for all.
-9. **Industry, Innovation, and Infrastructure**: Build resilient infrastructure, promote inclusive and sustainable industrialization, and foster innovation.
-10. **Reduced Inequality**: Reduce inequality within and among countries.
-11. **Sustainable Cities and Communities**: Make cities and human settlements inclusive, safe, resilient, and sustainable.
-12. **Responsible Consumption and Production**: Ensure sustainable consumption and production patterns.
-13. **Climate Action**: Take urgent action to combat climate change and its impacts.
-14. **Life Below Water**: Conserve and sustainably use the oceans, seas, and marine resources for sustainable development.
-15. **Life on Land**: Protect, restore, and promote sustainable use of terrestrial ecosystems, sustainably manage forests, combat desertification, and halt and reverse land degradation and halt biodiversity loss.
-16. **Peace, Justice, and Strong Institutions**: Promote peaceful and inclusive societies for sustainable development, provide access to justice for all, and build effective, accountable, and inclusive institutions at all levels.
-17. **Partnerships for the Goals**: Strengthen the means of implementation and revitalize the global partnership for sustainable development.
+**Country page** (`/country/<name>/`) — the headline score with global and regional rank, change
+since 2015 and since 2000, and the regional average; a 2000–2022 trend chart of the country
+against its region and the world; the goals it is closest to and furthest from; where it has
+gained and lost ground since 2015; and a card for each of the 17 goals carrying the score, its
+rank among the countries assessed, its quartile position, the change since 2015, comparison marks
+for the regional and all-country averages, and a sparkline of the full series.
 
-## Installation
+**Goal page** (`/goal/<1-17>/`) — one goal across every country: the world score and its trend,
+regional averages, the distribution of scores, the biggest gains and falls since 2015, the full
+ranked table, and the list of countries not assessed on that goal.
 
-1. **Clone the repository:**
-    ```bash
-    git clone https://github.com/yourusername/your-repo-name.git
-    cd your-repo-name
-    ```
+**About the data** (`/about/`) — what a score means, how the published index handles missing
+goals, why regional averages appear twice, and what the site deliberately does not claim.
 
-2. **Create a virtual environment:**
-    ```bash
-    python -m venv venv
-    ```
+**JSON** (`/api/country/<name>/`) — the same profile the page is built from.
 
-3. **Activate the virtual environment:**
-    - On Windows:
-        ```bash
-        venv\Scripts\activate
-        ```
-    - On macOS and Linux:
-        ```bash
-        source venv/bin/activate
-        ```
+Search accepts everyday names: `south korea`, `turkey`, `ivory coast`, `USA`, `DR Congo` and ISO
+codes such as `IDN` all resolve to the right profile.
 
-4. **Install the required dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+## Handling of the data
 
-5. **Create a `.env` file in the root directory of the project and add the following environment variables:**
-    ```
-    SECRET_KEY=your_secret_key
-    NEWS_API_KEY=your_news_api_key
-    ```
-    Replace `your_secret_key` with a secret key for your Django project and `your_news_api_key` with an API key from the News API.
+Two details in these files will produce wrong pages if they are taken at face value.
 
-6. **Apply the migrations:**
-    ```bash
-    python manage.py migrate
-    ```
+**Missing is not zero.** The 2000–2022 file has no empty cells: it writes `0.0` where a goal is
+not assessed. The 2023 file leaves those cells blank. For the 166 countries the 2023 blanks decide
+the question. Reading "all zeros" as "missing" instead would be wrong, because the report also
+contains five genuine zero scores, two of which sit on a series that is zero throughout (Burundi
+on Goal 1, Qatar on Goal 13). Those are real results and the site shows them as `0.0`. Aggregates
+have no 2023 row, so there the all-zero test is used as a fallback. Nothing that is not assessed
+is ever plotted, ranked or averaged as a zero.
 
-7. **Run the development server:**
-    ```bash
-    python manage.py runserver
-    ```
+**The 17 goals do not average to the headline.** The published overall score fills each missing
+goal with that country's regional average for that goal before averaging. Reproducing that
+matches every published score to within 6×10⁻⁹; a plain average of the goals present diverges by
+up to 3.46 points. The site therefore displays the published score and never recomputes it.
 
-8. **Open your web browser and visit:**
-    ```
-    http://127.0.0.1:8000/
-    ```
+Both points, and the rest of the method, are on the `/about/` page.
 
-Now you should be able to see the project running locally.
+## Running it locally
+
+```bash
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env                                 # optional, see below
+python manage.py migrate
+python manage.py runserver
+```
+
+Then open <http://127.0.0.1:8000/>.
+
+## Running it with Docker
+
+```bash
+docker compose up --build
+```
+
+The site is on <http://localhost:8000/>. To change the port, set `HOST_PORT`.
+
+Or without Compose:
+
+```bash
+docker build -t sdg-country-profiles .
+docker run --rm -p 8000:8000 \
+  -e SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')" \
+  -e DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1 \
+  sdg-country-profiles
+```
+
+The image is a two-stage build on `python:3.12-slim`. It runs as a non-root user, collects static
+files at build time, serves them through WhiteNoise, runs `migrate` on start, and exposes a
+liveness endpoint at `/healthz` that reports how many countries and years parsed.
+
+## Configuration
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `SECRET_KEY` | insecure dev key | **Set this in production.** |
+| `DJANGO_DEBUG` | `True` | Set to `False` when deployed. |
+| `DJANGO_ALLOWED_HOSTS` | `127.0.0.1,localhost` | Comma separated. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | empty | Comma separated, with scheme. |
+| `DJANGO_BEHIND_PROXY` | unset | Set to `1` behind a TLS-terminating proxy: enables the forwarded-proto header, HTTPS redirect and secure cookies. |
+| `DJANGO_DB_PATH` | `db.sqlite3` | Only Django's own admin/session tables; the site's content is read-only CSV. |
+| `WEB_CONCURRENCY` | `3` | Gunicorn workers. |
+| `PORT` | `8000` | Port gunicorn binds. |
+| `GEMINI_API_KEY` | unset | Optional, see below. |
+| `NEWS_API_KEY` | unset | Optional, see below. |
+
+## The optional extras
+
+A country page can also show a one-paragraph summary written by Gemini from that country's own
+computed figures, and a few recent news headlines. Both are optional and clearly labelled where
+they appear.
+
+Neither produces or influences any score. With no keys set, those two sections do not render and
+every other part of the page is identical. Both calls are wrapped so that a missing package, an
+expired key, a rate limit or a timeout degrades to "no section" rather than an error page, and
+results — including failures — are cached.
+
+## Project layout
+
+```
+data/                                CSV sources
+information/
+  analytics.py                       parses both CSVs once, computes every rank and trend
+  constant.py                        the 17 goals, regions, name aliases, source credits
+  services.py                        the two optional integrations, each fully guarded
+  views.py                           thin views: look up, render
+  templates/                         base, home, country, goal, about, no-match, 404, 500
+  static/css/styles.css              the whole design system, light and dark
+  static/js/charts.js                SVG line charts and sparklines, no external library
+unsdg/                               Django project settings
+Dockerfile, docker-compose.yml       container build and local orchestration
+docker-entrypoint.sh                 migrate, then gunicorn
+```
+
+## Data sources
+
+Sustainable Development Report 2023 and SDG Index 2000–2022, published by the Sustainable
+Development Solutions Network (Sachs, J., Lafortune, G., Fuller, G., Drumm, E. et al.).
+
+The Sustainable Development Goals are a United Nations framework. This site is an independent
+presentation of published SDG data and is not affiliated with the United Nations, and the figures
+it shows are not United Nations statistics.

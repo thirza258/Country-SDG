@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}About the data &mdash; SDG Country Profiles{% endblock %}
+
+{% block content %}
+<section class="wrap prose">
+  <p class="eyebrow">Methodology</p>
+  <h1>Where these numbers come from</h1>
+  <p class="lede">
+    Everything on this site is computed from two CSV files that ship with it. No figure is
+    modelled, estimated or filled in, and nothing is fetched from an external service to
+    produce the scores.
+  </p>
+
+  <h2>The two datasets</h2>
+  <dl>
+    <dt>{{ sources.report.label }}</dt>
+    <dd>
+      One row per country with an overall SDG Index score and a score for each of the 17 goals.
+      It covers {{ country_count }} countries and is the source of every headline score and
+      ranking on the site.
+    </dd>
+    <dt>{{ sources.index.label }}</dt>
+    <dd>
+      An annual series from {{ first_year }} to {{ latest_year }} for the same countries plus
+      {{ aggregate_count }} aggregate groups. It is the source of every trend line, sparkline and
+      "change since {{ first_year }}" figure.
+    </dd>
+  </dl>
+  <p class="muted">{{ sources.credit }}.</p>
+
+  <h2>What a score means</h2>
+  <p>
+    Each goal score runs from 0 to 100 and measures distance to target: 0 is the worst outcome
+    observed across countries and 100 means the target has been reached on the indicators behind
+    that goal. So <code>100 &minus; score</code> is the distance still to cover. A score of 60 on
+    Goal 4 and 60 on Goal 13 are both "60 per cent of the way there", but they rest on different
+    indicators, so comparing one goal across countries says more than comparing a country's own
+    goals against each other.
+  </p>
+  <p>
+    A score of 100 means the indicators used for that goal are at target. It does not mean the
+    goal is finished, and this site never describes a country as having achieved a goal or as
+    being on track for 2030 &mdash; neither claim is supported by these files.
+  </p>
+
+  <h2>Why the 17 goals do not average to the headline</h2>
+  <p>
+    The overall SDG Index score is published in the dataset, and this site displays it rather
+    than recomputing it. It is the unweighted average of all 17 goal scores &mdash; but where a
+    country has no score for a goal, the published index fills that gap with the average of that
+    country's own region on that goal before averaging.
+  </p>
+  <p>
+    Reproducing that rule matches every published overall score to within
+    6&times;10<sup>&minus;9</sup>. Simply averaging the goals a country does have diverges by up
+    to 3.46 points. That is why a country with a missing goal will not see its 17 visible numbers
+    average to its headline score, and why this site labels any average it computes itself as
+    "the average of the countries assessed".
+  </p>
+
+  <h2>Two baselines</h2>
+  <p>
+    Change is shown against {{ first_year }} and against 2015. 2015 is the year the goals were
+    adopted, and it is the more revealing comparison: measured from {{ first_year }} only one
+    country in the dataset scores lower today, which makes almost every country look like it is
+    improving. Measured from 2015 the picture is mixed, and the world score has fallen on two
+    goals.
+  </p>
+
+  <h2>Regional averages, twice</h2>
+  <p>
+    Where this site says "average of the N countries in this region", it means exactly that: the
+    unweighted mean of those countries' scores. The dataset also publishes its own regional
+    aggregates, which are weighted and can differ substantially &mdash; the published Oceania
+    aggregate is 52.7 while the mean of its two member countries is 63.2. Both are shown on the
+    regions table, labelled, rather than one being silently substituted for the other.
+  </p>
+
+  <h2>Rankings</h2>
+  <p>
+    Ranks are computed over the {{ country_count }} countries in the {{ report_year }} report.
+    Regional and world aggregates are excluded from every ranking, and countries with no score
+    on a goal are excluded from that goal's ranking rather than being placed last. Ties share a
+    rank, so two countries at rank 12 are followed by rank 14.
+  </p>
+  <p>
+    Regional ranks use the region assigned to each country in the dataset: OECD, Eastern Europe
+    &amp; Central Asia, Latin America &amp; the Caribbean, Middle East &amp; North Africa, East
+    &amp; South Asia, Oceania and Sub-Saharan Africa.
+  </p>
+
+  <h2>Missing data is shown as missing</h2>
+  <p>
+    Not every goal is assessed for every country. 40 countries have no Goal 14 score, 17 have no
+    Goal 10 score and 15 have no Goal 1 score, so 107 countries are scored on all 17 goals, 46 on
+    16 and 13 on 15. Those cases are labelled <em>not assessed</em>, and they are never plotted,
+    ranked or averaged as a zero.
+  </p>
+  <p>
+    Goal 14 covers oceans and marine resources, and every country missing it is landlocked, so
+    that gap is labelled <em>not applicable</em> rather than treated as an absence of data. The
+    Goal 1 and Goal 10 gaps are ordinary data gaps.
+  </p>
+  <p>
+    This needs care, because the {{ first_year }}&ndash;{{ latest_year }} file has no empty cells:
+    it writes <code>0.0</code> where a goal is not assessed, while the {{ report_year }} report
+    leaves the cell blank. For the {{ country_count }} countries the report's blanks decide the
+    question, and the matching series is hidden. Reading "all zeros" as "missing" instead would
+    be wrong: the report contains five genuine zero scores, and two of them &mdash; Burundi on
+    Goal 1 and Qatar on Goal 13 &mdash; sit on a series that is zero throughout. Those are real
+    worst-in-file results and the site shows them as 0.0. The aggregate groups have no report
+    row, so there the all-zero test is the only signal available and is used as a fallback.
+  </p>
+
+  <h2>Quartile labels</h2>
+  <p>
+    A goal card may say <em>top quartile</em> or <em>bottom quartile</em>. That is this site's own
+    description of where a score sits in the distribution of the {{ country_count }} countries in
+    this dataset, for that goal. It is <strong>not</strong> the Sustainable Development Report's
+    green / yellow / orange / red dashboard rating. That rating is derived from a country's two
+    weakest <em>indicators</em> within each goal, which are not present in these files and cannot
+    be reconstructed from them.
+  </p>
+
+  <h2>What the site does not claim</h2>
+  <ul>
+    <li>
+      These are not United Nations statistics. The Sustainable Development Report is published by
+      the Sustainable Development Solutions Network, an independent body. The Sustainable
+      Development Goals themselves are the UN framework the report measures against.
+    </li>
+    <li>The scores describe the year of the underlying report, not today.</li>
+    <li>A rank measures position within this dataset, not a country's standing in any official process.</li>
+    <li>Where the two files disagree slightly on the same goal, both figures are shown with their year and source rather than reconciled.</li>
+    <li>The 17 are Goals. Beneath them sit 169 targets and 231 indicators, which are not in these files.</li>
+    <li>The 14 aggregate groups are not countries. They are never counted in the country total and never enter a ranking.</li>
+  </ul>
+
+  <h2>The optional extras</h2>
+  <p>
+    A country page can also show a one-paragraph summary written by a language model and a few
+    recent news headlines. Both require API keys, both are clearly labelled where they appear,
+    and neither is used to produce any score. With no keys configured, those sections simply do
+    not render and the rest of the page is unchanged.
+  </p>
+
+  <h2>Getting the data out</h2>
+  <p>
+    Every country profile is available as JSON at
+    <code>/api/country/&lt;country name&gt;/</code> &mdash; for example
+    <a href="{% url 'country_api' 'Indonesia' %}">/api/country/Indonesia/</a>. It contains the same
+    scores, ranks, comparisons and series the page is built from.
+  </p>
+</section>
+{% endblock %}

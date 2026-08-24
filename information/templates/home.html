@@ -1,90 +1,272 @@
+{% extends "base.html" %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UN SDG</title>
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
-  </head>
-  <body>
-    <nav>
-      <div class="nav-container">
-        <h1 class="nav-title">UN SDG Information</h1>
+{% block title %}SDG Country Profiles &mdash; scores and trends for {{ summary.country_count }} countries{% endblock %}
 
-        <form id="search-form" class="nav-form">
-          <select
-            name="country_name"
-            id="country-select"
-            title="Select a Country"
-          >
-            <option value="">Select a Country</option>
-            {% for country in all_countries %}
-            <option value="{{ country }}">{{ country }}</option>
-            {% endfor %}
-          </select>
-          <button type="submit">Search</button>
-        </form>
-      </div>
-    </nav>
+{% block content %}
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <p class="eyebrow">Sustainable Development Goals</p>
+      <h1>How every country is doing on the 17 goals</h1>
+      <p class="lede">
+        Scores, world and regional rankings, and {{ summary.first_year }}&ndash;{{ summary.latest_year }}
+        trends for {{ summary.country_count }} countries, taken straight from the published
+        Sustainable Development Report data. Pick a country to see all 17 goals.
+      </p>
 
-    <section class="hero">
-      <div class="container">
-        <h2>What is SDG?</h2>
-        <p>
-          The Sustainable Development Goals (SDGs) are a collection of 17 global
-          goals set by the United Nations in 2015 to achieve a better and more
-          sustainable future for all.
-        </p>
-      </div>
-      {% for sdg in landing_data %}
-      <div class="sdg-card">
-        <img
-          src="{% static 'assets/' %}{{ sdg.image }}"
-          alt="{{ sdg.title }}"
+      <form class="hero-search" action="{% url 'search' %}" method="get" role="search">
+        <label class="visually-hidden" for="hero-input">Country</label>
+        <input
+          id="hero-input"
+          name="q"
+          list="entity-list"
+          type="text"
+          autocomplete="off"
+          placeholder="Indonesia, Kenya, Germany&hellip;"
+          required
         />
-        <div class="sdg-text">
-          <h2 class="sdg-title">{{ sdg.title }}</h2>
-          <p class="sdg-description">{{ sdg.description }}</p>
+        <button type="submit">See the profile</button>
+      </form>
+
+      <p class="hero-shortcuts">
+        Or start with
+        {% for name in summary.top|slice:":3" %}<a href="{% url 'country' name.country %}">{{ name.country }}</a>{% if not forloop.last %}, {% endif %}{% endfor %},
+        or <a href="{% url 'country' 'World' %}">the world as a whole</a>.
+      </p>
+    </div>
+
+    <aside class="hero-stat">
+      <p class="hero-stat-label">World SDG Index, {{ summary.latest_year }}</p>
+      <p class="hero-stat-value">{{ summary.world_score }}<span>/100</span></p>
+      <p class="hero-stat-change">
+        <b class="{% if summary.world_change_since_baseline > 0 %}up{% else %}down{% endif %}">
+          {% if summary.world_change_since_baseline > 0 %}+{% endif %}{{ summary.world_change_since_baseline }}
+        </b>
+        since {{ summary.baseline_year }}, when the goals were adopted &middot;
+        <b class="{% if summary.world_change > 0 %}up{% else %}down{% endif %}">
+          {% if summary.world_change > 0 %}+{% endif %}{{ summary.world_change }}
+        </b>
+        since {{ summary.first_year }}
+      </p>
+      <figure class="chart" data-chart="world-trend" data-height="150"></figure>
+    </aside>
+  </div>
+</section>
+
+<section class="wrap panel">
+  <div class="panel-head">
+    <h2>Where the world stands on each goal</h2>
+    <p class="muted">
+      The published world score for {{ summary.latest_year }}, with the change since
+      {{ summary.baseline_year }}, the year the goals were adopted. Select a goal to see every
+      country ranked on it.
+    </p>
+  </div>
+
+  <div class="world-goals">
+    {% for goal in summary.world_goals %}
+    <a class="world-goal" href="{% url 'goal' goal.number %}" style="--goal: {{ goal.color }}">
+      <img src="{% static goal.image %}" alt="" width="48" height="48" />
+      <div class="world-goal-body">
+        <p class="world-goal-title">{{ goal.number }}. {{ goal.title }}</p>
+        <div class="meter">
+          <div class="meter-fill" style="width: {{ goal.score }}%"></div>
         </div>
       </div>
+      <div class="world-goal-score">
+        <b>{{ goal.score }}</b>
+        {% if goal.change_since_baseline is not None %}
+        <small class="{% if goal.change_since_baseline > 0 %}up{% elif goal.change_since_baseline < 0 %}down{% endif %}">
+          {% if goal.change_since_baseline > 0 %}+{% endif %}{{ goal.change_since_baseline }}
+        </small>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <p class="callout">
+    The world is furthest behind on
+    {% for goal in summary.world_goals_lagging|slice:":3" %}<a href="{% url 'goal' goal.number %}">Goal {{ goal.number }} ({{ goal.title }}, {{ goal.score }})</a>{% if not forloop.last %}, {% endif %}{% endfor %}.
+    {% if summary.world_goals_backwards %}
+    Since {{ summary.baseline_year }} the world score has fallen on
+    {% for goal in summary.world_goals_backwards %}<a href="{% url 'goal' goal.number %}">Goal {{ goal.number }} ({{ goal.title }}, {{ goal.change_since_baseline }})</a>{% if not forloop.last %} and {% endif %}{% endfor %}.
+    {% endif %}
+  </p>
+</section>
+
+<section class="wrap two-col">
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Highest scoring countries</h2>
+      <p class="muted">{{ summary.report_year }} report, overall SDG Index score.</p>
+    </div>
+    <ol class="league">
+      {% for row in summary.top %}
+      <li>
+        <span class="league-rank">{{ row.rank }}</span>
+        <a href="{% url 'country' row.country %}">{{ row.country }}</a>
+        <span class="league-region">{{ row.region }}</span>
+        <span class="league-bar"><span style="width: {{ row.score }}%"></span></span>
+        <b>{{ row.score }}</b>
+      </li>
       {% endfor %}
-    </section>
+    </ol>
+  </article>
 
-    <footer>
-      <div class="container">
-        <div class="footer-content">
-          <div class="footer-section about">
-            <h2>About Us</h2>
-            <p>
-              We are committed to promoting the United Nations Sustainable
-              Development Goals (SDGs) to achieve a better and more sustainable
-              future for all.
-            </p>
-          </div>
-          <div class="footer-section contact">
-            <h2>Contact Us</h2>
-            <p>Email: info@unsdg.org</p>
-            <p>Phone: +123 456 7890</p>
-          </div>
-        </div>
-      </div>
-    </footer>
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Lowest scoring countries</h2>
+      <p class="muted">The same measure, from the other end of the table.</p>
+    </div>
+    <ol class="league">
+      {% for row in summary.bottom %}
+      <li>
+        <span class="league-rank">{{ row.rank }}</span>
+        <a href="{% url 'country' row.country %}">{{ row.country }}</a>
+        <span class="league-region">{{ row.region }}</span>
+        <span class="league-bar"><span style="width: {{ row.score }}%"></span></span>
+        <b>{{ row.score }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+</section>
 
-    <script>
-      document
-        .getElementById("search-form")
-        .addEventListener("submit", function (event) {
-          event.preventDefault(); // Prevent default form submission
-          let selectedCountry = document.getElementById("country-select").value;
-          if (selectedCountry) {
-            window.location.href =
-              "/info_score/" + encodeURIComponent(selectedCountry);
-          } else {
-            alert("Please select a country.");
-          }
-        });
-    </script>
-  </body>
-</html>
+<section class="wrap two-col">
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Biggest gains since {{ summary.baseline_year }}</h2>
+      <p class="muted">Change in SDG Index score since the goals were adopted.</p>
+    </div>
+    <ol class="league">
+      {% for row in summary.improved %}
+      <li>
+        <span class="league-rank">{{ forloop.counter }}</span>
+        <a href="{% url 'country' row.country %}">{{ row.country }}</a>
+        <span class="league-region">{{ row.first }} &rarr; {{ row.last }}</span>
+        <b class="up">+{{ row.change }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Largest falls since {{ summary.baseline_year }}</h2>
+      <p class="muted">
+        Countries scoring lower than they did in {{ summary.baseline_year }}. Measured from
+        {{ summary.first_year }} instead, only one country in the dataset has gone backwards
+        &mdash; which is why the adoption year is the more useful baseline.
+      </p>
+    </div>
+    <ol class="league">
+      {% for row in summary.declined %}
+      <li>
+        <span class="league-rank">{{ forloop.counter }}</span>
+        <a href="{% url 'country' row.country %}">{{ row.country }}</a>
+        <span class="league-region">{{ row.first }} &rarr; {{ row.last }}</span>
+        <b class="{% if row.change < 0 %}down{% endif %}">{% if row.change > 0 %}+{% endif %}{{ row.change }}</b>
+      </li>
+      {% endfor %}
+    </ol>
+  </article>
+</section>
+
+<section class="wrap panel">
+  <div class="panel-head">
+    <h2>By region</h2>
+    <p class="muted">
+      Two different numbers, deliberately shown side by side: the plain average of the countries
+      in a region, and the region's own published aggregate, which is weighted by population.
+      Oceania is the clearest gap, because it holds only two countries.
+    </p>
+  </div>
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col">Region</th>
+          <th scope="col">Countries</th>
+          <th scope="col">Average of its countries</th>
+          <th scope="col">Published aggregate</th>
+          <th scope="col">Highest</th>
+          <th scope="col">Lowest</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in summary.regions %}
+        <tr>
+          <th scope="row">{{ row.name }}</th>
+          <td>{{ row.countries }}</td>
+          <td>
+            <span class="cell-bar"><span style="width: {{ row.mean }}%"></span></span>
+            {{ row.mean }}
+          </td>
+          <td><a href="{% url 'country' row.aggregate %}">{{ row.published }}</a></td>
+          <td><a href="{% url 'country' row.best %}">{{ row.best }}</a> ({{ row.best_score }})</td>
+          <td><a href="{% url 'country' row.worst %}">{{ row.worst }}</a> ({{ row.worst_score }})</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="wrap panel">
+  <div class="panel-head">
+    <h2>Every country, ranked</h2>
+    <p class="muted">All {{ summary.country_count }} countries in the {{ summary.report_year }} report. Type to filter.</p>
+  </div>
+  <label class="visually-hidden" for="table-filter">Filter countries</label>
+  <input id="table-filter" class="filter-input" type="search" placeholder="Filter by country or region&hellip;" />
+  <div class="table-scroll tall">
+    <table class="data-table" id="all-countries">
+      <thead>
+        <tr><th scope="col">Rank</th><th scope="col">Country</th><th scope="col">Region</th><th scope="col">Score</th></tr>
+      </thead>
+      <tbody>
+        {% for row in summary.leaderboard %}
+        <tr>
+          <td>{{ row.rank }}</td>
+          <th scope="row"><a href="{% url 'country' row.country %}">{{ row.country }}</a></th>
+          <td>{{ row.region }}</td>
+          <td>
+            <span class="cell-bar"><span style="width: {{ row.score }}%"></span></span>
+            {{ row.score }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted small">
+    Regional, income and world aggregates are not ranked here, but they have profiles too:
+    {% for name in aggregates %}<a href="{% url 'country' name %}">{{ name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.
+  </p>
+</section>
+
+{{ chart_data|json_script:"chart-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/charts.js' %}"></script>
+<script>
+  (function () {
+    const data = JSON.parse(document.getElementById("chart-data").textContent);
+    SDGCharts.lineChart(document.querySelector('[data-chart="world-trend"]'), data.world);
+
+    const filter = document.getElementById("table-filter");
+    const rows = Array.prototype.slice.call(
+      document.querySelectorAll("#all-countries tbody tr")
+    );
+    filter.addEventListener("input", function () {
+      const needle = filter.value.trim().toLowerCase();
+      rows.forEach(function (row) {
+        row.hidden = needle !== "" && row.textContent.toLowerCase().indexOf(needle) === -1;
+      });
+    });
+  })();
+</script>
+{% endblock %}

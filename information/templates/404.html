@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Page not found{% endblock %}
+
+{% block content %}
+<section class="wrap prose">
+  <h1>Page not found</h1>
+  <p class="lede">That address does not match anything on this site.</p>
+  <p>
+    Country pages live at <code>/country/&lt;name&gt;/</code> and goal pages at
+    <code>/goal/&lt;1-17&gt;/</code>. The search box above lists every available name.
+  </p>
+  <p><a href="{% url 'home' %}">Back to all countries &rarr;</a></p>
+</section>
+{% endblock %}
