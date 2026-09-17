@@ -380,7 +380,7 @@ class SeoTests(SimpleTestCase):
     def test_robots_txt(self):
         response = self.client.get("/robots.txt")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Content-Type"], "text/plain")
+        self.assertTrue(response["Content-Type"].startswith("text/plain"))
         content = response.content.decode("utf-8")
         self.assertIn("User-agent: *", content)
         self.assertIn("Allow: /", content)

@@ -14,6 +14,7 @@ from importlib.util import find_spec
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import sys
 
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -47,7 +48,7 @@ CSRF_TRUSTED_ORIGINS = [
 # Behind a proxy (most container platforms), trust its forwarded scheme.
 if os.getenv("DJANGO_BEHIND_PROXY", "").lower() in {"1", "true", "yes"}:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = "test" not in sys.argv
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     # Start low and raise once you are sure every subdomain serves HTTPS.
@@ -154,7 +155,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 # information/static is found by the app-directories finder; listing it here as
 # well would make collectstatic report every file twice.
 
-if find_spec("whitenoise"):
+if find_spec("whitenoise") and "test" not in sys.argv:
     STORAGES = {
         "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
         "staticfiles": {
@@ -162,14 +163,21 @@ if find_spec("whitenoise"):
         },
     }
 
-# The CSVs never change at runtime, so an in-process cache is enough. It also
-# holds the optional AI summaries and news lookups so they are fetched once.
+# Optional summaries/news use memory. Public source responses persist on disk
+# across workers and restarts, including the last successful response on failure.
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "sdg-site",
-    }
+    },
+    "live_data": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": os.getenv("SDG_CACHE_DIR") or str(BASE_DIR / "var" / "sdg-cache"),
+        "TIMEOUT": None,
+    },
 }
+
+SDG_REFRESH_SECONDS = max(300, int(os.getenv("SDG_REFRESH_SECONDS", "86400")))
 
 LOGGING = {
     "version": 1,

@@ -14,6 +14,7 @@ services:
       DJANGO_BEHIND_PROXY: ${DJANGO_BEHIND_PROXY:-1}
       PORT: ${PORT:-9011}
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-3}
+      SDG_REFRESH_SECONDS: ${SDG_REFRESH_SECONDS:-86400}
       # Optional. Leave unset and the AI summary and news sections simply
       # do not appear; every score on the site is unaffected.
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
@@ -21,7 +22,7 @@ services:
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
       NEWS_API_KEY: ${NEWS_API_KEY:-}
     volumes:
-      # Django's own admin/session tables. The site's content is read-only CSV.
+      # Admin/session tables and persistent snapshots of public SDG sources.
       - sdg-db:/app/var
     restart: unless-stopped
     healthcheck:
