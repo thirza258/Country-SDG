@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sitemaps",
     "information",
 ]
 
@@ -159,14 +160,21 @@ if find_spec("whitenoise"):
         },
     }
 
-# The CSVs never change at runtime, so an in-process cache is enough. It also
-# holds the optional AI summaries and news lookups so they are fetched once.
+# Optional summaries/news use memory. Public source responses persist on disk
+# across workers and restarts, including the last successful response on failure.
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "sdg-site",
-    }
+    },
+    "live_data": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": os.getenv("SDG_CACHE_DIR") or str(BASE_DIR / "var" / "sdg-cache"),
+        "TIMEOUT": None,
+    },
 }
+
+SDG_REFRESH_SECONDS = max(300, int(os.getenv("SDG_REFRESH_SECONDS", "86400")))
 
 LOGGING = {
     "version": 1,

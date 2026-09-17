@@ -9,9 +9,10 @@
       content="{% block description %}Sustainable Development Goal scores, rankings and 2000-2022 trends for 166 countries.{% endblock %}"
     />
     <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+    {% block styles %}{% endblock %}
     <link rel="icon" href="{% static 'assets/E-WEB-Goal-13.png' %}" />
   </head>
-  <body>
+  <body class="{% block body_class %}{% endblock %}">
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="site-header">
@@ -26,11 +27,12 @@
 
         <nav class="site-nav" aria-label="Main">
           <a href="{% url 'home' %}" {% if active == 'home' %}aria-current="page"{% endif %}>Overview</a>
-          <a href="{% url 'goal' 1 %}" {% if active == 'goals' %}aria-current="page"{% endif %}>Goals</a>
+          <a href="{% url 'home' %}#goals" {% if active == 'goals' %}aria-current="page"{% endif %}>Goals</a>
+          <a href="{% url 'home' %}#countries">Countries</a>
           <a href="{% url 'about' %}" {% if active == 'about' %}aria-current="page"{% endif %}>About the data</a>
         </nav>
 
-        <form class="country-search" action="{% url 'search' %}" method="get" role="search">
+        {% if active != 'home' %}<form class="country-search" action="{% url 'search' %}" method="get" role="search">
           <label class="visually-hidden" for="country-input">Find a country</label>
           <input
             id="country-input"
@@ -42,7 +44,7 @@
             required
           />
           <button type="submit">View</button>
-        </form>
+        </form>{% endif %}
       </div>
     </header>
 
@@ -58,15 +60,17 @@
         <div>
           <h2>About this site</h2>
           <p>
-            Every figure on this site is computed from two published datasets. Nothing is
-            estimated, modelled or filled in: where a goal is not assessed for a country, it is
-            shown as not assessed rather than as a score.
+            Explore published SDG Index scores alongside automatically refreshed UN indicators.
+            Each source keeps its own dates and methodology. Missing observations are shown as
+            unavailable.
           </p>
           <p><a href="{% url 'about' %}">How the numbers are derived &rarr;</a></p>
         </div>
         <div>
           <h2>Data sources</h2>
           <ul class="plain">
+            <li><a href="https://data360.worldbank.org/en/dataset/UN_SDG">World Bank Data360 &middot; UN SDG</a></li>
+            <li><a href="https://www.sdg.org/">SDG.org &middot; SDG Data Alliance</a></li>
             <li>{{ sources.report.label }} &mdash; {{ sources.report.note }}</li>
             <li>{{ sources.index.label }} &mdash; {{ sources.index.note }}</li>
           </ul>
@@ -90,6 +94,7 @@
           The Sustainable Development Goals are a United Nations framework. This site is an
           independent presentation of published SDG data and is not affiliated with the
           United Nations.
+          <a href="{% url 'sitemap' %}">Sitemap</a>
         </p>
       </div>
     </footer>

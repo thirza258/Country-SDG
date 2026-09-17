@@ -3,16 +3,16 @@
 A Django site that answers one question for every country in the dataset: **how is it doing on
 each of the 17 Sustainable Development Goals?**
 
-Every figure comes from two CSV files in `data/`. Nothing is modelled, estimated or filled in, and
-no external service is needed to produce a single score on the site.
+Country scores come from the bundled Sustainable Development Report datasets. The landing page
+also refreshes selected UN SDG indicators from World Bank Data360 and recent resources from
+SDG.org. It keeps the sources, units and observation years distinct.
 
 ## What the site shows
 
-**Home** — the world SDG Index score and how it has moved since 2015 and since 2000; the world
-score on each of the 17 goals with its change since the goals were adopted; the highest and lowest
-scoring countries; the biggest gains and the biggest falls; a region table that shows the plain
-average of a region's countries next to the region's own published aggregate; and the full ranked
-list of all 166 countries, filterable.
+**Home** — a UN-blue world map, country search, 17-goal directory and filterable report rankings.
+The map switches between the historical 2023 SDG Index and three live Goal 2 measures: child
+wasting, sustainable agriculture and local livestock breeds at risk. Each country shows its
+latest available observation year. Source checks and saved-data fallback are labelled.
 
 **Country page** (`/country/<name>/`) — the headline score with global and regional rank, change
 since 2015 and since 2000, and the regional average; a 2000–2022 trend chart of the country
@@ -29,6 +29,7 @@ ranked table, and the list of countries not assessed on that goal.
 goals, why regional averages appear twice, and what the site deliberately does not claim.
 
 **JSON** (`/api/country/<name>/`) — the same profile the page is built from.
+`/api/sources/` returns the live landing-page sources and their freshness status.
 
 Search accepts everyday names: `south korea`, `turkey`, `ivory coast`, `USA`, `DR Congo` and ISO
 codes such as `IDN` all resolve to the right profile.
@@ -59,6 +60,7 @@ python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\act
 pip install -r requirements.txt
 cp .env.example .env                                 # optional, see below
 python manage.py migrate
+python manage.py collectstatic --noinput
 python manage.py runserver
 ```
 
@@ -100,6 +102,65 @@ liveness endpoint at `/healthz` that reports how many countries and years parsed
 | `PORT` | `8000` | Port gunicorn binds. |
 | `GEMINI_API_KEY` | unset | Optional, see below. |
 | `NEWS_API_KEY` | unset | Optional, see below. |
+| `SDG_REFRESH_SECONDS` | `86400` | Refresh expired public sources on the next visit; minimum 300 seconds. |
+| `SDG_CACHE_DIR` | `var/sdg-cache` | Writable persistent directory for live source snapshots. |
+
+## Automatic source updates
+
+No API keys are needed. HTML renders immediately from a local snapshot, then the browser calls
+`/api/sources/`. Sources older than 24 hours refresh independently through the current Data360
+`/data360/portal/v1/data` and `/metadata` APIs and the public catalogue group declared by
+[SDG.org](https://www.sdg.org/). The browser checks again every five minutes while visible and
+when the tab becomes active; fresh server responses are reused without upstream calls.
+
+Data360 currently contains a subset of UN SDG indicators. The selected live observations are
+percentages, **not SDG Index scores**. The importer filters exact disaggregations, preserves
+zero, skips null and nonnumeric values, rejects conflicting observations, and selects the latest
+numeric year for each area. It never averages observations into a world score or rewrites the
+historical country rankings. Source coverage can differ between indicators and countries.
+
+A small verified snapshot is bundled in `data/live_sources.json` for first launch or offline use.
+New successful responses persist in `SDG_CACHE_DIR` across workers and restarts. Failed refreshes
+retain the original retrieval date and data, display a saved-data status, and retry after 15
+minutes. Source checks, dataset release dates, observation years and SDG.org page modification
+dates have different meanings and are shown separately. SDG.org updates link directly to public
+pages from its ArcGIS Hub catalogue; the site does not scrape its rendered HTML at runtime.
+
+Refresh on demand, or run this from your scheduler for updates even without visitors:
+
+```bash
+python manage.py refresh_sdg_data
+# Example daily cron (use your deployment's absolute paths):
+# 0 3 * * * cd /app && /opt/venv/bin/python manage.py refresh_sdg_data
+```
+
+The command exits nonzero if a source fails while retaining successful results. Docker Compose
+persists the cache in the existing `/app/var` volume. No scheduler is required for visit-triggered
+updates, and none is installed automatically.
+
+## Automatically generated sitemap
+
+`/sitemap.xml` is generated on every request from the current profiles and the 17-goal catalogue.
+It includes the home and methodology pages, all country and aggregate profiles, and all goals.
+`/robots.txt` advertises its absolute URL using the current host and scheme (including the
+configured HTTPS proxy headers). No static sitemap file, manual rebuild or domain hardcoding is
+needed. API endpoints, search results and old redirect URLs are excluded.
+
+Modification dates come from the relevant report files and page templates. The landing page also
+uses the last time source content changed. Checking an unchanged source or requesting the sitemap
+does not invent a new modification date. Sitemap requests read local source snapshots and never
+wait for third-party APIs. Source refreshes become visible in the next sitemap response.
+
+## Verification
+
+```bash
+python manage.py collectstatic --noinput
+python manage.py test information
+```
+
+Tests cover report regressions, exact indicator disaggregation, missing and zero observations,
+source timeouts, malformed responses, freshness and retry backoff. Browser checks cover the map,
+search, country filter, responsive layout and source rendering.
 
 ## The optional extras
 
@@ -115,14 +176,20 @@ results — including failures — are cached.
 ## Project layout
 
 ```
-data/                                CSV sources
+data/                                CSV sources, map geometry and initial live snapshot
 information/
   analytics.py                       parses both CSVs once, computes every rank and trend
   constant.py                        the 17 goals, regions, name aliases, source credits
   services.py                        the two optional integrations, each fully guarded
+  live_data.py                       public source fetching, validation and persistent cache
+  maps.py                            bundled boundaries and canonical country links
+  sitemaps.py                        automatic canonical URLs and content modification dates
+  management/commands/refresh_sdg_data.py  optional scheduled/manual refresh
   views.py                           thin views: look up, render
   templates/                         base, home, country, goal, about, no-match, 404, 500
-  static/css/styles.css              the whole design system, light and dark
+  static/css/styles.css              shared design system, light and dark
+  static/css/home.css                restrained UN-blue landing page
+  static/js/home.js                  map, filters and automatic source refresh
   static/js/charts.js                SVG line charts and sparklines, no external library
 unsdg/                               Django project settings
 Dockerfile, docker-compose.yml       container build and local orchestration
@@ -135,5 +202,14 @@ Sustainable Development Report 2023 and SDG Index 2000–2022, published by the 
 Development Solutions Network (Sachs, J., Lafortune, G., Fuller, G., Drumm, E. et al.).
 
 The Sustainable Development Goals are a United Nations framework. This site is an independent
-presentation of published SDG data and is not affiliated with the United Nations, and the figures
-it shows are not United Nations statistics.
+presentation of published SDG data and is not affiliated with the United Nations. Its SDG Index
+rankings are SDSN report scores. The separate live indicators are sourced from the UN SDG dataset
+via World Bank Data360.
+
+Live sources: [UN SDG on World Bank Data360](https://data360.worldbank.org/en/dataset/UN_SDG)
+and the [SDG Data Alliance](https://www.sdg.org/). Report rankings retain the 2023 edition.
+
+Map geometry is derived from [Natural Earth 1:110m countries](https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/),
+public domain. It is bundled locally; there is no map SDK, map API key or third-party tile request.
+Rebuild it with `python scripts/build_world_map.py`. Small territories may not be visible at this
+map scale; all available country profiles remain searchable in the table.

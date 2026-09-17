@@ -1,11 +1,18 @@
 import difflib
 
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_GET
+from django.views.decorators.cache import never_cache
+from django.contrib.sitemaps.views import sitemap as django_sitemap
+from django.urls import reverse
 
 from . import analytics
 from .constant import GOALS, SOURCES
 from .services import ai_commentary, related_news
+from .live_data import landing_sources
+from .maps import world_map
+from .sitemaps import ProfileSitemap
 
 
 def _shell(active=""):
@@ -22,6 +29,7 @@ def _shell(active=""):
 
 def home(request):
     summary = analytics.home_summary()
+    map_features, map_countries = world_map(summary)
     chart_data = {
         "world": {
             "series": [
@@ -33,7 +41,34 @@ def home(request):
     return render(
         request,
         "home.html",
-        {**_shell("home"), "summary": summary, "chart_data": chart_data},
+        {
+            **_shell("home"), "summary": summary, "chart_data": chart_data,
+            "map_features": map_features, "map_countries": map_countries,
+            "live": landing_sources(),
+        },
+    )
+
+
+@require_GET
+def sources_api(request):
+    response = JsonResponse(landing_sources(refresh=True))
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@require_GET
+@never_cache
+def sitemap(request):
+    return django_sitemap(request, sitemaps={"profiles": ProfileSitemap})
+
+
+@require_GET
+def robots(request):
+    sitemap_url = request.build_absolute_uri(reverse("sitemap"))
+    return HttpResponse(
+        "User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\n"
+        f"Disallow: /search/\n\nSitemap: {sitemap_url}\n",
+        content_type="text/plain; charset=utf-8",
     )
 
 

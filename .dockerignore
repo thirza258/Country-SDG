@@ -8,6 +8,7 @@ __pycache__
 *.py[cod]
 .env
 db.sqlite3
+var/
 staticfiles/
 data/analysis.ipynb
 .DS_Store

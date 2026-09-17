@@ -36,7 +36,7 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --chown=app:app . .
 
 # staticfiles/ is written at build time; var/ holds the SQLite file Django's
-# admin needs. The site's own data is read-only CSV.
+# admin needs, plus persistent snapshots of the live public SDG sources.
 RUN mkdir -p /app/staticfiles /app/var \
  && chmod +x /app/docker-entrypoint.sh \
  && chown -R app:app /app

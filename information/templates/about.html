@@ -7,12 +7,39 @@
   <p class="eyebrow">Methodology</p>
   <h1>Where these numbers come from</h1>
   <p class="lede">
-    Everything on this site is computed from two CSV files that ship with it. No figure is
-    modelled, estimated or filled in, and nothing is fetched from an external service to
-    produce the scores.
+    The country scores and rankings come from the bundled Sustainable Development Report.
+    The landing page also connects to World Bank Data360 for UN SDG observations and to
+    SDG.org for geographic data resources. Every source retains its own dates and units.
   </p>
 
-  <h2>The two datasets</h2>
+  <h2>Automatically updated sources</h2>
+  <p>
+    The landing page checks the <a href="https://data360.worldbank.org/en/dataset/UN_SDG">World Bank
+    Data360 UN SDG dataset</a> daily when visited. It retrieves selected Goal 2 indicators
+    on child wasting, sustainable agriculture and local breeds at risk, plus the dataset's
+    published release date. Data360 hosts a subset of the UN SDG database, not a composite
+    score for all 17 goals. The live map shows each area's latest non-missing observation;
+    years can differ between countries. No global average is inferred from those observations.
+  </p>
+  <p>
+    For child wasting, the site selects both sexes and the wasting category, excluding
+    overweight and sex-specific series. The other indicators use the source's total or
+    not-applicable dimensions. Percentages retain their source values, including genuine zeros.
+    A darker map colour means a higher numerical value, not necessarily a better outcome.
+  </p>
+  <p>
+    Geographic resources link to the <a href="https://www.sdg.org/">SDG Data Alliance</a>.
+    Recent updates come from its public ArcGIS Hub catalogue, ordered by the page's
+    modification date. That date is not an observation year.
+  </p>
+  <p>
+    The last successful responses are saved locally. If a source times out or returns invalid
+    data, the site keeps the saved response, labels it as saved, and retries after 15 minutes.
+    "Source checked" is the retrieval date; "latest observation" is the data's own year.
+    UN indicator updates do not change the historical report rankings below.
+  </p>
+
+  <h2>The two report datasets</h2>
   <dl>
     <dt>{{ sources.report.label }}</dt>
     <dd>
