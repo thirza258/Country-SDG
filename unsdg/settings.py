@@ -24,8 +24,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "SECRET_KEY", "django-insecure--amy#!rzp%8i%^52)i9p#snvcplq-do5(+_8nd$q$yeah1j%0!"
+SECRET_KEY = (
+    os.getenv("SECRET_KEY")
+    or "django-insecure--amy#!rzp%8i%^52)i9p#snvcplq-do5(+_8nd$q$yeah1j%0!"
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -52,6 +53,7 @@ if os.getenv("DJANGO_BEHIND_PROXY", "").lower() in {"1", "true", "yes"}:
     # Start low and raise once you are sure every subdomain serves HTTPS.
     SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_HSTS_SECONDS", "3600"))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_REDIRECT_EXEMPT = [r"^healthz/?$"]
 
 # Application definition
 
@@ -62,6 +64,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sitemaps",
     "information",
 ]
 

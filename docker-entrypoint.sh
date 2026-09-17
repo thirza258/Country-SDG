@@ -9,7 +9,7 @@ python manage.py migrate --noinput
 if [ "$1" = "gunicorn" ]; then
   shift
   exec gunicorn unsdg.wsgi:application \
-    --bind "0.0.0.0:${PORT:-8000}" \
+    --bind "0.0.0.0:${PORT:-9011}" \
     --workers "${WEB_CONCURRENCY:-3}" \
     --preload \
     --threads "${GUNICORN_THREADS:-2}" \

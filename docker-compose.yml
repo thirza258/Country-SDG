@@ -3,25 +3,29 @@ services:
     build: .
     image: sdg-country-profiles
     ports:
-      - "${HOST_PORT:-8000}:8000"
+      - "${HOST_PORT:-9011}:${PORT:-9011}"
     environment:
       # Required in production. Generate one with:
       #   python -c "import secrets; print(secrets.token_urlsafe(50))"
       SECRET_KEY: ${SECRET_KEY:-change-me-before-deploying}
-      DJANGO_DEBUG: "False"
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
-      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-sdg.nevatal.id,localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-https://sdg.nevatal.id}
+      DJANGO_BEHIND_PROXY: ${DJANGO_BEHIND_PROXY:-1}
+      PORT: ${PORT:-9011}
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-3}
       # Optional. Leave unset and the AI summary and news sections simply
       # do not appear; every score on the site is unaffected.
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
       NEWS_API_KEY: ${NEWS_API_KEY:-}
     volumes:
       # Django's own admin/session tables. The site's content is read-only CSV.
       - sdg-db:/app/var
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status == 200 else 1)"]
+      test: ["CMD", "python", "-c", "import os,urllib.request,sys; port=os.environ.get('PORT','9011'); sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{port}/healthz', timeout=4).status == 200 else 1)"]
       interval: 30s
       timeout: 5s
       start_period: 20s

@@ -1,6 +1,6 @@
 import difflib
 
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 
 from . import analytics
@@ -192,3 +192,20 @@ def country_api(request, country_name):
     if profile is None:
         return JsonResponse({"error": f"No SDG data for {country_name}"}, status=404)
     return JsonResponse(profile)
+
+
+def robots_txt(request):
+    """Serve robots.txt for search engine crawlers."""
+    sitemap_url = request.build_absolute_uri("/sitemap.xml")
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin/",
+        "Disallow: /search/",
+        "Disallow: /api/",
+        "Disallow: /healthz",
+        "",
+        f"Sitemap: {sitemap_url}",
+    ]
+    return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")
+

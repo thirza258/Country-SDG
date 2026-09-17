@@ -50,9 +50,13 @@ def _describe(profile: dict) -> str:
     return "\n".join(lines)
 
 
+DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_OPENROUTER_MODEL = "google/gemini-2.0-flash-001"
+
+
 def ai_commentary(profile: dict) -> str | None:
     """One paragraph interpreting this country's figures, or None."""
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         return None
 
@@ -62,37 +66,46 @@ def ai_commentary(profile: dict) -> str | None:
         return cached or None
 
     try:
-        import google.generativeai as genai
+        from openai import OpenAI
     except ImportError:
-        logger.info("google-generativeai is not installed; skipping AI commentary")
+        logger.info("openai is not installed; skipping AI commentary")
         return None
 
+    base_url = os.getenv("OPENROUTER_BASE_URL") or DEFAULT_OPENROUTER_BASE_URL
+    model = os.getenv("OPENROUTER_MODEL") or DEFAULT_OPENROUTER_MODEL
+
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            generation_config={
-                "temperature": 0.4,
-                "top_p": 0.95,
-                "max_output_tokens": 512,
-                "response_mime_type": "text/plain",
-            },
-            system_instruction=(
-                "You summarise Sustainable Development Goal performance for one country. "
-                "You are given that country's scores from the Sustainable Development Report "
-                "dataset. Write exactly one paragraph of at most 120 words that interprets "
-                "THESE numbers: name the goals it scores highest and lowest on, note the "
-                "direction of travel since 2000, and say how it compares with its region. "
-                "Do not invent statistics that are not in the input, do not repeat the whole "
-                "list of scores, and do not use bullet points or headings."
-            ),
+        client = OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=8.0,
         )
-        response = model.generate_content(
-            _describe(profile),
-            # Gunicorn's worker timeout is the real ceiling; stay well inside it.
-            request_options={"timeout": 8},
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You summarise Sustainable Development Goal performance for one country. "
+                        "You are given that country's scores from the Sustainable Development Report "
+                        "dataset. Write exactly one paragraph of at most 120 words that interprets "
+                        "THESE numbers: name the goals it scores highest and lowest on, note the "
+                        "direction of travel since 2000, and say how it compares with its region. "
+                        "Do not invent statistics that are not in the input, do not repeat the whole "
+                        "list of scores, and do not use bullet points or headings."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": _describe(profile),
+                },
+            ],
+            temperature=0.4,
+            top_p=0.95,
+            max_tokens=512,
         )
-        text = (response.text or "").strip()
+        choice = response.choices[0] if response.choices else None
+        text = (choice.message.content or "").strip() if choice and choice.message else ""
     except Exception as error:  # any SDK/network/quota failure
         logger.warning("AI commentary unavailable for %s: %s", profile["name"], error)
         cache.set(cache_key, "", 60 * 10)
@@ -100,6 +113,7 @@ def ai_commentary(profile: dict) -> str | None:
 
     cache.set(cache_key, text, CACHE_SECONDS)
     return text or None
+
 
 
 NEWS_ENDPOINT = "https://newsapi.org/v2/everything"

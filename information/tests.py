@@ -7,15 +7,18 @@ loudly, and so the two data traps described in ``analytics`` stay fixed.
 Run with:  python manage.py test information
 """
 
+from unittest.mock import MagicMock, patch
 from urllib.parse import unquote
 
-from django.test import SimpleTestCase, TestCase
+from django.core.cache import cache
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from . import analytics
 from .constant import GOALS
 
 
 class DatasetShapeTests(SimpleTestCase):
+
     def setUp(self):
         self.data = analytics.get_dataset()
 
@@ -186,6 +189,8 @@ class NameResolutionTests(SimpleTestCase):
         self.assertIsNone(analytics.country_profile("Atlantis"))
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
+@patch.dict("os.environ", {"OPENROUTER_API_KEY": "", "NEWS_API_KEY": ""}, clear=False)
 class PageTests(TestCase):
     """Every page must render with no API keys configured."""
 
@@ -273,9 +278,152 @@ class PageTests(TestCase):
 class OptionalServiceTests(SimpleTestCase):
     """The extras must stay silent rather than break a page."""
 
+    def tearDown(self):
+        cache.clear()
+
+    @patch.dict("os.environ", {"OPENROUTER_API_KEY": "", "NEWS_API_KEY": ""}, clear=False)
     def test_no_keys_means_no_extras(self):
         from . import services
 
         profile = analytics.country_profile("Kenya")
         self.assertIsNone(services.ai_commentary(profile))
         self.assertEqual(services.related_news("Kenya"), [])
+
+    @patch.dict(
+        "os.environ",
+        {
+            "OPENROUTER_API_KEY": "sk-or-test12345",
+            "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+            "OPENROUTER_MODEL": "google/gemini-2.0-flash-001",
+        },
+        clear=False,
+    )
+    @patch("openai.OpenAI")
+    def test_openrouter_commentary_success(self, mock_openai_cls):
+        from . import services
+
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Kenya has shown solid progress on several SDGs."
+        mock_response.choices = [mock_choice]
+        mock_client.chat.completions.create.return_value = mock_response
+
+        profile = analytics.country_profile("Kenya")
+        result = services.ai_commentary(profile)
+
+        self.assertEqual(result, "Kenya has shown solid progress on several SDGs.")
+        mock_openai_cls.assert_called_once_with(
+            api_key="sk-or-test12345",
+            base_url="https://openrouter.ai/api/v1",
+            timeout=8.0,
+        )
+        mock_client.chat.completions.create.assert_called_once()
+        create_kwargs = mock_client.chat.completions.create.call_args.kwargs
+        self.assertEqual(create_kwargs["model"], "google/gemini-2.0-flash-001")
+        self.assertEqual(create_kwargs["temperature"], 0.4)
+        self.assertEqual(create_kwargs["top_p"], 0.95)
+        self.assertEqual(create_kwargs["max_tokens"], 512)
+
+    @patch.dict(
+        "os.environ",
+        {
+            "OPENROUTER_API_KEY": "sk-or-test",
+            "OPENROUTER_BASE_URL": "https://custom.openrouter.ai/v1",
+            "OPENROUTER_MODEL": "meta-llama/llama-3.3-70b-instruct",
+        },
+    )
+    @patch("openai.OpenAI")
+    def test_openrouter_custom_config(self, mock_openai_cls):
+        from . import services
+
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Custom model output."
+        mock_response.choices = [mock_choice]
+        mock_client.chat.completions.create.return_value = mock_response
+
+        profile = analytics.country_profile("Kenya")
+        result = services.ai_commentary(profile)
+
+        self.assertEqual(result, "Custom model output.")
+        mock_openai_cls.assert_called_once_with(
+            api_key="sk-or-test",
+            base_url="https://custom.openrouter.ai/v1",
+            timeout=8.0,
+        )
+        create_kwargs = mock_client.chat.completions.create.call_args.kwargs
+        self.assertEqual(create_kwargs["model"], "meta-llama/llama-3.3-70b-instruct")
+
+    @patch.dict("os.environ", {"OPENROUTER_API_KEY": "sk-or-test"})
+    @patch("openai.OpenAI")
+    def test_openrouter_api_error_returns_none(self, mock_openai_cls):
+        from . import services
+
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = RuntimeError("API Rate Limit")
+
+        profile = analytics.country_profile("Kenya")
+        result = services.ai_commentary(profile)
+
+        self.assertIsNone(result)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class SeoTests(SimpleTestCase):
+    """Tests for robots.txt and sitemap.xml SEO configurations."""
+
+    def test_robots_txt(self):
+        response = self.client.get("/robots.txt")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain")
+        content = response.content.decode("utf-8")
+        self.assertIn("User-agent: *", content)
+        self.assertIn("Allow: /", content)
+        self.assertIn("Disallow: /admin/", content)
+        self.assertIn("Disallow: /search/", content)
+        self.assertIn("Disallow: /api/", content)
+        self.assertIn("Disallow: /healthz", content)
+        self.assertIn("Sitemap: http://testserver/sitemap.xml", content)
+
+    def test_sitemap_xml(self):
+        response = self.client.get("/sitemap.xml")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/xml")
+        content = response.content.decode("utf-8")
+        self.assertIn("<loc>http://testserver/</loc>", content)
+        self.assertIn("<loc>http://testserver/about/</loc>", content)
+        self.assertIn("<loc>http://testserver/goal/1/</loc>", content)
+        self.assertIn("<loc>http://testserver/goal/17/</loc>", content)
+        self.assertIn("<loc>http://testserver/country/Finland/</loc>", content)
+        self.assertIn("<loc>http://testserver/country/World/</loc>", content)
+        # Total URLs: 2 static + 17 goals + 166 countries + 14 aggregates = 199
+        self.assertEqual(content.count("<url>"), 199)
+
+    def test_https_urls_behind_the_proxy(self):
+        # In production a TLS proxy forwards https and the SEO files must
+        # advertise https URLs, or search engines would be told to crawl http.
+        with override_settings(
+            SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https")
+        ):
+            sitemap = self.client.get(
+                "/sitemap.xml",
+                HTTP_X_FORWARDED_PROTO="https",
+                SERVER_NAME="sdg.nevatal.id",
+                SERVER_PORT=443,
+            )
+            robots = self.client.get(
+                "/robots.txt",
+                HTTP_X_FORWARDED_PROTO="https",
+                SERVER_NAME="sdg.nevatal.id",
+                SERVER_PORT=443,
+            )
+        self.assertIn(b"<loc>https://sdg.nevatal.id/</loc>", sitemap.content)
+        self.assertNotIn(b"<loc>http://", sitemap.content)
+        self.assertIn(b"Sitemap: https://sdg.nevatal.id/sitemap.xml", robots.content)
+
+

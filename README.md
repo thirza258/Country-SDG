@@ -33,6 +33,13 @@ goals, why regional averages appear twice, and what the site deliberately does n
 Search accepts everyday names: `south korea`, `turkey`, `ivory coast`, `USA`, `DR Congo` and ISO
 codes such as `IDN` all resolve to the right profile.
 
+## Search engines
+
+`/sitemap.xml` lists every page — home, about, the 17 goals, the 166 countries and the regional
+and income aggregates. `/robots.txt` points crawlers at it and keeps them out of `/search/`,
+`/api/`, `/healthz` and `/admin/`. Behind the TLS-terminating proxy both advertise `https://`
+URLs automatically.
+
 ## Handling of the data
 
 Two details in these files will produce wrong pages if they are taken at face value.
@@ -70,15 +77,15 @@ Then open <http://127.0.0.1:8000/>.
 docker compose up --build
 ```
 
-The site is on <http://localhost:8000/>. To change the port, set `HOST_PORT`.
+The site is on <http://localhost:9011/>. To change the port, set `HOST_PORT`.
 
 Or without Compose:
 
 ```bash
 docker build -t sdg-country-profiles .
-docker run --rm -p 8000:8000 \
+docker run --rm -p 9011:9011 \
   -e SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')" \
-  -e DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1 \
+  -e DJANGO_ALLOWED_HOSTS=sdg.nevatal.id,localhost,127.0.0.1 \
   sdg-country-profiles
 ```
 
@@ -97,13 +104,15 @@ liveness endpoint at `/healthz` that reports how many countries and years parsed
 | `DJANGO_BEHIND_PROXY` | unset | Set to `1` behind a TLS-terminating proxy: enables the forwarded-proto header, HTTPS redirect and secure cookies. |
 | `DJANGO_DB_PATH` | `db.sqlite3` | Only Django's own admin/session tables; the site's content is read-only CSV. |
 | `WEB_CONCURRENCY` | `3` | Gunicorn workers. |
-| `PORT` | `8000` | Port gunicorn binds. |
-| `GEMINI_API_KEY` | unset | Optional, see below. |
+| `PORT` | `9011` | Port gunicorn binds. |
+| `OPENROUTER_API_KEY` | unset | Optional, see below. |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Optional, custom OpenAI/OpenRouter endpoint. |
+| `OPENROUTER_MODEL` | `google/gemini-2.0-flash-001` | Optional, model to request via OpenRouter. |
 | `NEWS_API_KEY` | unset | Optional, see below. |
 
 ## The optional extras
 
-A country page can also show a one-paragraph summary written by Gemini from that country's own
+A country page can also show a one-paragraph summary written via OpenRouter (using the OpenAI client) from that country's own
 computed figures, and a few recent news headlines. Both are optional and clearly labelled where
 they appear.
 
@@ -121,6 +130,7 @@ information/
   constant.py                        the 17 goals, regions, name aliases, source credits
   services.py                        the two optional integrations, each fully guarded
   views.py                           thin views: look up, render
+  sitemaps.py                        sitemap for every static, goal and country page
   templates/                         base, home, country, goal, about, no-match, 404, 500
   static/css/styles.css              the whole design system, light and dark
   static/js/charts.js                SVG line charts and sparklines, no external library
