@@ -195,7 +195,6 @@ information/
   sitemaps.py                        automatic canonical URLs and content modification dates
   management/commands/refresh_sdg_data.py  optional scheduled/manual refresh
   views.py                           thin views: look up, render
-  sitemaps.py                        sitemap for every static, goal and country page
   templates/                         base, home, country, goal, about, no-match, 404, 500
   static/css/styles.css              shared design system, light and dark
   static/css/home.css                restrained UN-blue landing page

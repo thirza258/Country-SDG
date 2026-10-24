@@ -72,6 +72,24 @@ class SitemapTests(SimpleTestCase):
         xml = ET.fromstring(self.client.get("/sitemap.xml", secure=True).content)
         self.assertTrue(all(node.text.startswith("https://testserver/") for node in xml.findall("s:url/s:loc", NS)))
 
+    def test_priorities_reflect_page_hierarchy(self):
+        response = self.client.get("/sitemap.xml")
+        xml = ET.fromstring(response.content)
+        priorities = {
+            unquote(urlparse(row.find("s:loc", NS).text).path): row.find("s:priority", NS).text
+            for row in xml.findall("s:url", NS)
+            if row.find("s:priority", NS) is not None
+        }
+        self.assertEqual(len(priorities), 2 + len(analytics.get_dataset().entities) + len(GOALS))
+        self.assertEqual(priorities["/"], "1.0")
+        self.assertEqual(priorities["/about/"], "0.8")
+        self.assertEqual(priorities["/goal/1/"], "0.8")
+        self.assertEqual(priorities["/goal/17/"], "0.8")
+        self.assertEqual(priorities["/country/Indonesia/"], "0.9")
+        self.assertEqual(priorities["/country/Finland/"], "0.9")
+        self.assertEqual(priorities["/country/World/"], "0.7")
+        self.assertEqual(priorities["/country/OECD members/"], "0.7")
+
     def test_repeat_source_checks_do_not_invent_a_new_content_date(self):
         previous = {"data": {"published_at": "2026-09-01"}, "fetched_at": 100, "changed_at": 90}
         _, result = live_data._refresh_one("world_bank", lambda: {"published_at": "2026-09-01"}, previous, 200)

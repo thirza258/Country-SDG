@@ -49,6 +49,26 @@ class ProfileSitemap(Sitemap):
     def lastmod(self, item):
         return self.modified[item[0]]
 
+    limit = 50000
+
+    def priority(self, item):
+        name, value = item
+        if name == "home":
+            return 1.0
+        if name == "country":
+            dataset = analytics.get_dataset()
+            is_aggregate_fn = getattr(dataset, "is_aggregate", None)
+            if is_aggregate_fn and is_aggregate_fn(value):
+                return 0.7
+            if hasattr(dataset, "aggregates") and value in dataset.aggregates:
+                return 0.7
+            return 0.9
+        if name == "goal":
+            return 0.8
+        if name == "about":
+            return 0.8
+        return 0.5
+
     def changefreq(self, item):
         return "daily" if item[0] == "home" else "monthly"
 

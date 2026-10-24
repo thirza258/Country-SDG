@@ -403,6 +403,10 @@ class SeoTests(SimpleTestCase):
         self.assertIn("<loc>http://testserver/country/World/</loc>", content)
         # Total URLs: 2 static + 17 goals + 166 countries + 14 aggregates = 199
         self.assertEqual(content.count("<url>"), 199)
+        self.assertIn("<priority>1.0</priority>", content)
+        self.assertIn("<priority>0.9</priority>", content)
+        self.assertIn("<priority>0.8</priority>", content)
+        self.assertIn("<priority>0.7</priority>", content)
 
     def test_https_urls_behind_the_proxy(self):
         # In production a TLS proxy forwards https and the SEO files must
