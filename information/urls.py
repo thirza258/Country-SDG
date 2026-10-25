@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     about,
+    ads_txt,
     country,
     country_api,
     goal,
@@ -18,6 +19,7 @@ urlpatterns = [
     path("", home, name="home"),
     path("sitemap.xml", sitemap, name="sitemap"),
     path("robots.txt", robots, name="robots"),
+    path("ads.txt", ads_txt, name="ads_txt"),
     path("about/", about, name="about"),
     path("search/", search, name="search"),
     path("country/<str:country_name>/", country, name="country"),

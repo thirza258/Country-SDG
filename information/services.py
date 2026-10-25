@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import random
 
 from django.core.cache import cache
 
@@ -53,6 +54,66 @@ def _describe(profile: dict) -> str:
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_OPENROUTER_MODEL = "google/gemini-2.0-flash-001"
 
+OPENROUTER_FREE_MODELS_ENV = os.getenv("OPENROUTER_FREE_MODELS")
+if OPENROUTER_FREE_MODELS_ENV:
+    DEFAULT_FREE_MODELS: list[str] = [
+        m.strip() for m in OPENROUTER_FREE_MODELS_ENV.split(",") if m.strip()
+    ]
+else:
+    DEFAULT_FREE_MODELS: list[str] = [
+        "openrouter/free",
+        "google/gemma-4-26b-a4b-it:free",
+        "google/gemma-4-31b-it:free",
+        "nvidia/nemotron-3.5-lightning:free",
+        "nvidia/nemotron-3.5-super-vl:free",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "cohere/north-mini-code:free",
+        "liquid/lfm-2.5-2.6b:free",
+        "recursive/flint-v1.0:free",
+        "dots-studio/dots-3-note-preview:free",
+    ]
+
+
+def get_shuffled_free_models(exclude: str | None = None) -> list[str]:
+    """Return a randomly shuffled list of free models, excluding the given model if present."""
+    candidates = [m for m in DEFAULT_FREE_MODELS if m != exclude]
+    random.shuffle(candidates)
+    return candidates
+
+
+def is_credit_exhausted_error(exc: Exception) -> bool:
+    """Check if an error from OpenRouter indicates insufficient credits / credit limit."""
+    status_code = getattr(exc, "status_code", None)
+    if status_code == 402:
+        return True
+    response = getattr(exc, "response", None)
+    if response is not None and getattr(response, "status_code", None) == 402:
+        return True
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        err = body.get("error", {})
+        if isinstance(err, dict) and err.get("code") == 402:
+            return True
+        if "credit" in str(body).lower():
+            return True
+    msg = str(exc).lower()
+    return any(
+        phrase in msg
+        for phrase in (
+            "402",
+            "insufficient credit",
+            "insufficient credits",
+            "payment required",
+            "credit limit",
+            "credits is over",
+            "credits are over",
+            "out of credits",
+            "balance is too low",
+            "exceeded your current quota",
+        )
+    )
+
 
 def ai_commentary(profile: dict) -> str | None:
     """One paragraph interpreting this country's figures, or None."""
@@ -74,36 +135,68 @@ def ai_commentary(profile: dict) -> str | None:
     base_url = os.getenv("OPENROUTER_BASE_URL") or DEFAULT_OPENROUTER_BASE_URL
     model = os.getenv("OPENROUTER_MODEL") or DEFAULT_OPENROUTER_MODEL
 
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You summarise Sustainable Development Goal performance for one country. "
+                "You are given that country's scores from the Sustainable Development Report "
+                "dataset. Write exactly one paragraph of at most 120 words that interprets "
+                "THESE numbers: name the goals it scores highest and lowest on, note the "
+                "direction of travel since 2000, and say how it compares with its region. "
+                "Do not invent statistics that are not in the input, do not repeat the whole "
+                "list of scores, and do not use bullet points or headings."
+            ),
+        },
+        {
+            "role": "user",
+            "content": _describe(profile),
+        },
+    ]
+
     try:
         client = OpenAI(
             api_key=api_key,
             base_url=base_url,
             timeout=8.0,
         )
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You summarise Sustainable Development Goal performance for one country. "
-                        "You are given that country's scores from the Sustainable Development Report "
-                        "dataset. Write exactly one paragraph of at most 120 words that interprets "
-                        "THESE numbers: name the goals it scores highest and lowest on, note the "
-                        "direction of travel since 2000, and say how it compares with its region. "
-                        "Do not invent statistics that are not in the input, do not repeat the whole "
-                        "list of scores, and do not use bullet points or headings."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": _describe(profile),
-                },
-            ],
-            temperature=0.4,
-            top_p=0.95,
-            max_tokens=512,
-        )
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.4,
+                top_p=0.95,
+                max_tokens=512,
+            )
+        except Exception as error:
+            if not is_credit_exhausted_error(error):
+                raise
+            logger.warning(
+                "OpenRouter credits exhausted for %s (%s). Falling back to shuffled free models.",
+                model,
+                error,
+            )
+            fallback_models = get_shuffled_free_models(exclude=model)
+            response = None
+            last_fallback_error = error
+            for free_model in fallback_models:
+                try:
+                    response = client.chat.completions.create(
+                        model=free_model,
+                        messages=messages,
+                        temperature=0.4,
+                        top_p=0.95,
+                        max_tokens=512,
+                    )
+                    logger.info("OpenRouter fallback succeeded with free model: %s", free_model)
+                    break
+                except Exception as fb_err:
+                    logger.warning("Fallback model %s failed: %s", free_model, fb_err)
+                    last_fallback_error = fb_err
+                    continue
+            if response is None:
+                raise last_fallback_error
+
         choice = response.choices[0] if response.choices else None
         text = (choice.message.content or "").strip() if choice and choice.message else ""
     except Exception as error:  # any SDK/network/quota failure

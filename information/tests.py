@@ -372,6 +372,41 @@ class OptionalServiceTests(SimpleTestCase):
 
         self.assertIsNone(result)
 
+    @patch.dict(
+        "os.environ",
+        {
+            "OPENROUTER_API_KEY": "sk-or-test",
+            "OPENROUTER_MODEL": "google/gemini-2.0-flash-001",
+        },
+    )
+    @patch("openai.OpenAI")
+    def test_openrouter_credit_error_falls_back_to_free_model(self, mock_openai_cls):
+        from . import services
+
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+
+        credit_err = Exception("Payment Required")
+        credit_err.status_code = 402
+
+        mock_fallback_response = MagicMock()
+        mock_choice = MagicMock()
+        mock_choice.message.content = "Fallback commentary from free model."
+        mock_fallback_response.choices = [mock_choice]
+
+        mock_client.chat.completions.create.side_effect = [
+            credit_err,
+            mock_fallback_response,
+        ]
+
+        profile = analytics.country_profile("Kenya")
+        result = services.ai_commentary(profile)
+
+        self.assertEqual(result, "Fallback commentary from free model.")
+        self.assertEqual(mock_client.chat.completions.create.call_count, 2)
+        fallback_call_model = mock_client.chat.completions.create.call_args_list[1].kwargs["model"]
+        self.assertIn(fallback_call_model, services.DEFAULT_FREE_MODELS)
+
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class SeoTests(SimpleTestCase):

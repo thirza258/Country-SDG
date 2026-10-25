@@ -75,6 +75,15 @@ def robots(request):
 robots_txt = robots
 
 
+@require_GET
+def ads_txt(request):
+    return HttpResponse(
+        "google.com, pub-3592604467898331, DIRECT, f08c47fec0942fa0\n",
+        content_type="text/plain; charset=utf-8",
+    )
+
+
+
 def country(request, country_name):
     profile = analytics.country_profile(country_name)
     if profile is None:
