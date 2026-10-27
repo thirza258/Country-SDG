@@ -65,11 +65,36 @@ def sitemap(request):
 @require_GET
 def robots(request):
     sitemap_url = request.build_absolute_uri(reverse("sitemap"))
-    return HttpResponse(
-        "User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\n"
-        f"Disallow: /search/\nDisallow: /healthz\n\nSitemap: {sitemap_url}\n",
+    ai_agents = "\n".join(
+        f"User-agent: {name}\nAllow: /\n"
+        for name in (
+            "GPTBot",
+            "OAI-SearchBot",
+            "ChatGPT-User",
+            "ClaudeBot",
+            "Claude-Web",
+            "PerplexityBot",
+            "Google-Extended",
+            "Applebot-Extended",
+            "CCBot",
+            "Amazonbot",
+            "Meta-ExternalAgent",
+            "cohere-ai",
+        )
+    )
+    response = HttpResponse(
+        "User-agent: *\n"
+        "Content-Signal: ai-train=yes, search=yes, ai-input=yes\n"
+        "Allow: /\nDisallow: /admin/\nDisallow: /api/\n"
+        "Disallow: /search/\nDisallow: /healthz\n\n"
+        f"{ai_agents}\n"
+        f"Host: https://sdg.nevatal.id\n"
+        f"Sitemap: {sitemap_url}\n"
+        "Agentmap: https://sdg.nevatal.id/.well-known/ai-catalog.json\n",
         content_type="text/plain; charset=utf-8",
     )
+    response["Cache-Control"] = "no-cache, must-revalidate"
+    return response
 
 
 robots_txt = robots

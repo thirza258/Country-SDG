@@ -135,6 +135,39 @@
     <script type="text/javascript"> var infolinks_pid = 3448935; var infolinks_wsid = 0; </script>
     <script type="text/javascript" src="//resources.infolinks.com/js/infolinks_main.js"></script>
 
+    <script id="webmcp-tools">
+      (function () {
+        const tools = [
+          {
+            name: "get_sdg_country_profile",
+            description: "Get the SDG score, rank and goal breakdown for a country.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                country: { type: "string", description: "Country name, for example Japan" }
+              },
+              required: ["country"]
+            },
+            execute: async function (args) {
+              const res = await fetch("/api/country/" + encodeURIComponent(args.country) + "/");
+              return await res.json();
+            }
+          }
+        ];
+        const mc = (typeof navigator !== "undefined" && navigator.modelContext) ||
+          (typeof document !== "undefined" && document.modelContext);
+        if (!mc) return;
+        if (typeof mc.provideContext === "function") {
+          try { mc.provideContext({ tools: tools }); } catch (e) {}
+        }
+        if (typeof mc.registerTool === "function") {
+          tools.forEach(function (tool) {
+            try { mc.registerTool(tool); } catch (e) {}
+          });
+        }
+      })();
+    </script>
+
     {% block scripts %}{% endblock %}
   </body>
 </html>
