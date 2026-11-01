@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy &mdash; SDG Country Profiles{% endblock %}
+
+{% block content %}
+<section class="wrap prose">
+  <p class="eyebrow">Trust &amp; Transparency</p>
+  <h1>Privacy Policy</h1>
+  <p class="lede">
+    Last updated: November 1, 2026. Learn how SDG Country Profiles protects your privacy on our self-hosted infrastructure.
+  </p>
+
+  <h2>1. Self-Hosted Infrastructure Guarantee</h2>
+  <p>
+    SDG Country Profiles is an independently operated, <strong>fully self-hosted</strong> data portal.
+    All Sustainable Development Goal indicator caches, published reports, country profiles, and search requests are processed and retained exclusively on our private self-hosted servers.
+    Your data does not leave our secured perimeter for tracking, profiling, or monetization.
+  </p>
+
+  <h2>2. AI Features &amp; Third-Party Processing (OpenRouter)</h2>
+  <p>
+    When available, our optional AI country narrative insights and trend syntheses are powered by language models accessed through <strong>OpenRouter</strong>.
+  </p>
+  <p>
+    When you view an AI-generated summary of a country's SDG progress, structured metric snapshots are dispatched to OpenRouter API endpoints for evaluation. No personal identifiers or account details are sent to OpenRouter. Use of AI features is subject to:
+  </p>
+  <ul>
+    <li><a href="https://openrouter.ai/privacy" target="_blank" rel="noopener noreferrer"><strong>OpenRouter Privacy Policy &rarr;</strong></a></li>
+    <li><a href="https://openrouter.ai/terms" target="_blank" rel="noopener noreferrer"><strong>OpenRouter Terms of Service &rarr;</strong></a></li>
+  </ul>
+
+  <h2>3. Information We Collect</h2>
+  <ul>
+    <li><strong>Server Access Logs:</strong> Standard web server connection logs (IP address, user agent, timestamp) retained temporarily for security and anomaly detection.</li>
+    <li><strong>Client Storage:</strong> Minimal session cookies or local preference flags to remember search preferences and theme choices.</li>
+  </ul>
+
+  <h2>4. Contact</h2>
+  <p>
+    For privacy questions or data inquiries regarding this self-hosted service, please contact the server administrator at <a href="{% url 'about' %}">About SDG Country Profiles</a>.
+  </p>
+</section>
+{% endblock %}

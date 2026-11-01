@@ -266,3 +266,11 @@ def country_api(request, country_name):
     return JsonResponse(profile)
 
 
+
+
+def privacy_policy(request):
+    return render(request, "privacy.html", _shell("privacy"))
+
+
+def terms_of_service(request):
+    return render(request, "terms.html", _shell("terms"))

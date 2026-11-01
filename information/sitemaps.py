@@ -22,6 +22,8 @@ class ProfileSitemap(Sitemap):
         return [
             ("home", None),
             ("about", None),
+            ("privacy", None),
+            ("terms", None),
             *(("country", name) for name in analytics.get_dataset().entities),
             *(("goal", goal["number"]) for goal in GOALS),
         ]
@@ -38,7 +40,7 @@ class ProfileSitemap(Sitemap):
         reports = _modified(analytics.REPORT_FILE, analytics.INDEX_FILE)
         dates = {
             name: max(shared, reports, _modified(templates / f"{name}.html"))
-            for name in ("home", "about", "country", "goal")
+            for name in ("home", "about", "privacy", "terms", "country", "goal")
         }
         sources = landing_sources()  # Reads the last successful snapshot; no network call.
         for source in [sources["world_bank"], sources["hubs"], *sources["indicators"]]:

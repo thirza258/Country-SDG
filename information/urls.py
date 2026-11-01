@@ -3,6 +3,8 @@ from django.urls import path
 from . import discovery
 from .views import (
     about,
+    privacy_policy,
+    terms_of_service,
     ads_txt,
     country,
     country_api,
@@ -22,6 +24,8 @@ urlpatterns = [
     path("robots.txt", robots, name="robots"),
     path("ads.txt", ads_txt, name="ads_txt"),
     path("about/", about, name="about"),
+    path("privacy/", privacy_policy, name="privacy"),
+    path("terms/", terms_of_service, name="terms"),
     path("search/", search, name="search"),
     path("country/<str:country_name>/", country, name="country"),
     path("goal/<int:number>/", goal, name="goal"),
