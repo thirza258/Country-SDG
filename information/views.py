@@ -145,6 +145,14 @@ def country(request, country_name):
         "sparklines": {str(goal["number"]): goal["series"] for goal in profile["goals"]},
     }
 
+    # Only include commentary/news if already cached so the initial page responds instantly without blocking
+    import re
+    from django.core.cache import cache
+
+    safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", profile.get("name", ""))
+    cached_commentary = cache.get(f"sdg_ai_{safe_name}")
+    cached_news = cache.get(f"sdg_news_{safe_name}_6")
+
     return render(
         request,
         "country.html",
@@ -152,8 +160,8 @@ def country(request, country_name):
             **_shell("country"),
             "profile": profile,
             "chart_data": chart_data,
-            "commentary": ai_commentary(profile),
-            "news": related_news(profile["name"]),
+            "commentary": cached_commentary,
+            "news": cached_news,
         },
     )
 
@@ -264,6 +272,26 @@ def country_api(request, country_name):
     if profile is None:
         return JsonResponse({"error": f"No SDG data for {country_name}"}, status=404)
     return JsonResponse(profile)
+
+
+@require_GET
+def country_commentary_api(request, country_name):
+    """Async endpoint for AI commentary so the country page loads without blocking."""
+    profile = analytics.country_profile(country_name)
+    if profile is None:
+        return JsonResponse({"error": f"No SDG data for {country_name}"}, status=404)
+    commentary = ai_commentary(profile)
+    return JsonResponse({"status": "ok", "commentary": commentary, "country": profile["name"]})
+
+
+@require_GET
+def country_news_api(request, country_name):
+    """Async endpoint for related news headlines."""
+    profile = analytics.country_profile(country_name)
+    if profile is None:
+        return JsonResponse({"error": f"No SDG data for {country_name}"}, status=404)
+    news = related_news(profile["name"])
+    return JsonResponse({"status": "ok", "news": news, "country": profile["name"]})
 
 
 

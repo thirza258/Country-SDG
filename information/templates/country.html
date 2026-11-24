@@ -229,36 +229,71 @@
   {% endif %}
 </section>
 
-{% if commentary %}
-<section class="wrap panel">
+<section class="wrap panel async-panel" id="commentary-panel" data-country="{{ profile.name }}" data-loaded="{% if commentary %}true{% else %}false{% endif %}">
   <div class="panel-head">
-    <h2>Summary</h2>
+    <div class="panel-title-row">
+      <h2>Summary</h2>
+      <span class="async-badge commentary-badge" id="commentary-badge">
+        {% if commentary %}AI Analysis{% else %}<span class="pulse-dot"></span> Generating insights&hellip;{% endif %}
+      </span>
+    </div>
     <p class="muted">Written by a language model from the scores above. Treat it as a reading of the table, not as a source.</p>
   </div>
-  <div class="commentary">{{ commentary|linebreaks }}</div>
+  <div class="commentary-content gradual-show{% if not commentary %} is-hidden{% endif %}" id="commentary-body">
+    {% if commentary %}<div class="commentary">{{ commentary|linebreaks }}</div>{% endif %}
+  </div>
+  {% if not commentary %}
+  <div class="skeleton-wrap skeleton-commentary" id="commentary-skeleton" aria-busy="true" aria-label="Loading AI summary">
+    <div class="skeleton-line shimmer" style="width: 100%; height: 18px; margin-bottom: 10px;"></div>
+    <div class="skeleton-line shimmer" style="width: 96%; height: 18px; margin-bottom: 10px;"></div>
+    <div class="skeleton-line shimmer" style="width: 98%; height: 18px; margin-bottom: 10px;"></div>
+    <div class="skeleton-line shimmer" style="width: 91%; height: 18px; margin-bottom: 10px;"></div>
+    <div class="skeleton-line shimmer" style="width: 65%; height: 18px;"></div>
+  </div>
+  {% endif %}
 </section>
-{% endif %}
 
-{% if news %}
-<section class="wrap panel">
+<section class="wrap panel async-panel" id="news-panel" data-country="{{ profile.name }}" data-loaded="{% if news %}true{% else %}false{% endif %}">
   <div class="panel-head">
-    <h2>Recent coverage</h2>
+    <div class="panel-title-row">
+      <h2>Recent coverage</h2>
+      <span class="async-badge news-badge" id="news-badge">
+        {% if news %}Recent News{% else %}<span class="pulse-dot"></span> Checking headlines&hellip;{% endif %}
+      </span>
+    </div>
     <p class="muted">Headlines mentioning {{ profile.name }} alongside sustainable development topics.</p>
   </div>
-  <div class="news-grid">
-    {% for item in news %}
-    <a class="news-card" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">
-      {% if item.image %}<img src="{{ item.image }}" alt="" loading="lazy" />{% endif %}
-      <div>
-        <h3>{{ item.title }}</h3>
-        {% if item.description %}<p>{{ item.description|truncatewords:26 }}</p>{% endif %}
-        <p class="news-meta">{{ item.source }}{% if item.published %} &middot; {{ item.published }}{% endif %}</p>
+  <div class="news-grid gradual-show{% if not news %} is-hidden{% endif %}" id="news-grid">
+    {% if news %}
+      {% for item in news %}
+      <a class="news-card" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">
+        {% if item.image %}<img src="{{ item.image }}" alt="" loading="lazy" onerror="this.style.display='none'" />{% endif %}
+        <div>
+          <h3>{{ item.title }}</h3>
+          {% if item.description %}<p>{{ item.description|truncatewords:26 }}</p>{% endif %}
+          <p class="news-meta">{{ item.source }}{% if item.published %} &middot; {{ item.published }}{% endif %}</p>
+        </div>
+      </a>
+      {% endfor %}
+    {% endif %}
+  </div>
+  {% if not news %}
+  <div class="news-grid skeleton-news-grid" id="news-skeleton" aria-busy="true" aria-label="Loading recent coverage">
+    {% for _ in "123" %}
+    <div class="news-card skeleton-card">
+      <div class="skeleton-img shimmer"></div>
+      <div style="padding: 0.85rem;">
+        <div class="skeleton-line shimmer" style="width: 35%; height: 12px; margin-bottom: 8px;"></div>
+        <div class="skeleton-line shimmer" style="width: 92%; height: 16px; margin-bottom: 6px;"></div>
+        <div class="skeleton-line shimmer" style="width: 78%; height: 16px; margin-bottom: 10px;"></div>
+        <div class="skeleton-line shimmer" style="width: 100%; height: 12px; margin-bottom: 4px;"></div>
+        <div class="skeleton-line shimmer" style="width: 60%; height: 12px;"></div>
       </div>
-    </a>
+    </div>
     {% endfor %}
   </div>
+  {% endif %}
 </section>
-{% endif %}
 
 <section class="wrap panel note-panel">
   <h2>About these numbers</h2>
@@ -317,6 +352,120 @@
       const number = node.getAttribute("data-spark");
       SDGCharts.sparkline(node, data.sparklines[number], node.getAttribute("data-color"));
     });
+
+    // Gradual async loading for AI Summary
+    const commentaryPanel = document.getElementById("commentary-panel");
+    if (commentaryPanel && commentaryPanel.dataset.loaded !== "true") {
+      const country = commentaryPanel.dataset.country;
+      fetch(`/api/country/${encodeURIComponent(country)}/commentary/`)
+        .then(function (res) { return res.json(); })
+        .then(function (resData) {
+          const skeleton = document.getElementById("commentary-skeleton");
+          const body = document.getElementById("commentary-body");
+          const badge = document.getElementById("commentary-badge");
+          if (resData && resData.commentary) {
+            if (skeleton) skeleton.classList.add("skeleton-fade-out");
+            setTimeout(function () {
+              if (skeleton) skeleton.remove();
+              if (body) {
+                const wrapper = document.createElement("div");
+                wrapper.className = "commentary";
+                const parts = resData.commentary.split(/\n\n+/);
+                parts.forEach(function (part) {
+                  const p = document.createElement("p");
+                  p.textContent = part.trim();
+                  wrapper.appendChild(p);
+                });
+                body.replaceChildren(wrapper);
+                body.classList.remove("is-hidden");
+              }
+              if (badge) {
+                badge.className = "async-badge ready";
+                badge.textContent = "AI Analysis";
+              }
+              commentaryPanel.dataset.loaded = "true";
+            }, 250);
+          } else {
+            commentaryPanel.style.transition = "opacity 0.3s ease";
+            commentaryPanel.style.opacity = "0";
+            setTimeout(function () { commentaryPanel.style.display = "none"; }, 300);
+          }
+        })
+        .catch(function () {
+          if (commentaryPanel) commentaryPanel.style.display = "none";
+        });
+    }
+
+    // Gradual async loading for News
+    const newsPanel = document.getElementById("news-panel");
+    if (newsPanel && newsPanel.dataset.loaded !== "true") {
+      const country = newsPanel.dataset.country;
+      fetch(`/api/country/${encodeURIComponent(country)}/news/`)
+        .then(function (res) { return res.json(); })
+        .then(function (resData) {
+          const skeleton = document.getElementById("news-skeleton");
+          const grid = document.getElementById("news-grid");
+          const badge = document.getElementById("news-badge");
+          if (resData && Array.isArray(resData.news) && resData.news.length > 0) {
+            if (skeleton) skeleton.classList.add("skeleton-fade-out");
+            setTimeout(function () {
+              if (skeleton) skeleton.remove();
+              if (grid) {
+                grid.replaceChildren();
+                resData.news.forEach(function (item, idx) {
+                  const a = document.createElement("a");
+                  a.className = "news-card gradual-card";
+                  a.style.animationDelay = (idx * 0.08) + "s";
+                  a.href = item.url;
+                  a.target = "_blank";
+                  a.rel = "noopener noreferrer";
+
+                  if (item.image) {
+                    const img = document.createElement("img");
+                    img.src = item.image;
+                    img.alt = "";
+                    img.loading = "lazy";
+                    img.onerror = function () { this.style.display = "none"; };
+                    a.appendChild(img);
+                  }
+
+                  const div = document.createElement("div");
+                  const h3 = document.createElement("h3");
+                  h3.textContent = item.title || "";
+                  div.appendChild(h3);
+
+                  if (item.description) {
+                    const p = document.createElement("p");
+                    p.textContent = item.description.length > 140 ? item.description.slice(0, 140) + "…" : item.description;
+                    div.appendChild(p);
+                  }
+
+                  const meta = document.createElement("p");
+                  meta.className = "news-meta";
+                  meta.textContent = (item.source || "") + (item.published ? " · " + item.published : "");
+                  div.appendChild(meta);
+
+                  a.appendChild(div);
+                  grid.appendChild(a);
+                });
+                grid.classList.remove("is-hidden");
+              }
+              if (badge) {
+                badge.className = "async-badge ready";
+                badge.textContent = resData.news.length + " Headlines";
+              }
+              newsPanel.dataset.loaded = "true";
+            }, 250);
+          } else {
+            newsPanel.style.transition = "opacity 0.3s ease";
+            newsPanel.style.opacity = "0";
+            setTimeout(function () { newsPanel.style.display = "none"; }, 300);
+          }
+        })
+        .catch(function () {
+          if (newsPanel) newsPanel.style.display = "none";
+        });
+    }
   })();
 </script>
 {% endblock %}

@@ -274,6 +274,18 @@ class PageTests(TestCase):
         self.assertIsNone(goal_14["score"])
         self.assertTrue(all(point["value"] is None for point in goal_14["series"]))
 
+    def test_async_commentary_and_news_api(self):
+        res = self.client.get("/api/country/Indonesia/commentary/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["status"], "ok")
+
+        res_news = self.client.get("/api/country/Indonesia/news/")
+        self.assertEqual(res_news.status_code, 200)
+        self.assertEqual(res_news.json()["status"], "ok")
+
+        res_404 = self.client.get("/api/country/Atlantis/commentary/")
+        self.assertEqual(res_404.status_code, 404)
+
 
 class OptionalServiceTests(SimpleTestCase):
     """The extras must stay silent rather than break a page."""
