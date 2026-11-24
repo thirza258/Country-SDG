@@ -436,8 +436,8 @@ class SeoTests(SimpleTestCase):
         self.assertIn("<loc>http://testserver/goal/17/</loc>", content)
         self.assertIn("<loc>http://testserver/country/Finland/</loc>", content)
         self.assertIn("<loc>http://testserver/country/World/</loc>", content)
-        # Total URLs: 2 static + 17 goals + 166 countries + 14 aggregates = 199
-        self.assertEqual(content.count("<url>"), 199)
+        # Total URLs: 4 static (index, about, terms, privacy) + 17 goals + 166 countries + 14 aggregates = 201
+        self.assertEqual(content.count("<url>"), 201)
         self.assertIn("<priority>1.0</priority>", content)
         self.assertIn("<priority>0.9</priority>", content)
         self.assertIn("<priority>0.8</priority>", content)

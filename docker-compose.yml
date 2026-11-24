@@ -20,6 +20,7 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      OPENROUTER_SHUFFLE_FREE_MODELS: ${OPENROUTER_SHUFFLE_FREE_MODELS:-true}
       NEWS_API_KEY: ${NEWS_API_KEY:-}
     volumes:
       # Admin/session tables and persistent snapshots of public SDG sources.

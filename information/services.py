@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import random
+import re
 
 from django.core.cache import cache
 
@@ -68,8 +69,10 @@ else:
         "nvidia/nemotron-3.5-super-vl:free",
         "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
         "nvidia/nemotron-3-ultra-550b-a55b:free",
-        "cohere/north-mini-code:free",
-        "liquid/lfm-2.5-2.6b:free",
+        "liquid/lfm-3-1.7b:free",
+        "inclusionai/ling-3.2-flash:free",
+        "baidu/ernie-5.5-flash-preview:free",
+        "particle-ai/particle-1:free",
         "recursive/flint-v1.0:free",
         "dots-studio/dots-3-note-preview:free",
     ]
@@ -121,7 +124,8 @@ def ai_commentary(profile: dict) -> str | None:
     if not api_key:
         return None
 
-    cache_key = f"sdg:ai:{profile['name']}"
+    safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", profile.get("name", ""))
+    cache_key = f"sdg_ai_{safe_name}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached or None
@@ -160,25 +164,19 @@ def ai_commentary(profile: dict) -> str | None:
             base_url=base_url,
             timeout=8.0,
         )
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.4,
-                top_p=0.95,
-                max_tokens=512,
-            )
-        except Exception as error:
-            if not is_credit_exhausted_error(error):
-                raise
-            logger.warning(
-                "OpenRouter credits exhausted for %s (%s). Falling back to shuffled free models.",
-                model,
-                error,
-            )
-            fallback_models = get_shuffled_free_models(exclude=model)
+
+        should_shuffle_free = model in ("free", "shuffle", "openrouter/free") or (
+            os.getenv("OPENROUTER_SHUFFLE_FREE_MODELS", "").lower() in ("true", "1", "yes")
+            and (model in DEFAULT_FREE_MODELS or ":free" in model)
+        )
+
+        if should_shuffle_free:
+            fallback_models = get_shuffled_free_models()
+            if model in fallback_models:
+                fallback_models.remove(model)
+                fallback_models.insert(0, model)
             response = None
-            last_fallback_error = error
+            last_err = None
             for free_model in fallback_models:
                 try:
                     response = client.chat.completions.create(
@@ -188,14 +186,51 @@ def ai_commentary(profile: dict) -> str | None:
                         top_p=0.95,
                         max_tokens=512,
                     )
-                    logger.info("OpenRouter fallback succeeded with free model: %s", free_model)
+                    logger.info("OpenRouter free model succeeded: %s", free_model)
                     break
                 except Exception as fb_err:
-                    logger.warning("Fallback model %s failed: %s", free_model, fb_err)
-                    last_fallback_error = fb_err
+                    logger.warning("Free model %s failed: %s", free_model, fb_err)
+                    last_err = fb_err
                     continue
             if response is None:
-                raise last_fallback_error
+                raise last_err or RuntimeError("All free OpenRouter models failed")
+        else:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=0.4,
+                    top_p=0.95,
+                    max_tokens=512,
+                )
+            except Exception as error:
+                if not is_credit_exhausted_error(error):
+                    raise
+                logger.warning(
+                    "OpenRouter credits exhausted for %s (%s). Falling back to shuffled free models.",
+                    model,
+                    error,
+                )
+                fallback_models = get_shuffled_free_models(exclude=model)
+                response = None
+                last_fallback_error = error
+                for free_model in fallback_models:
+                    try:
+                        response = client.chat.completions.create(
+                            model=free_model,
+                            messages=messages,
+                            temperature=0.4,
+                            top_p=0.95,
+                            max_tokens=512,
+                        )
+                        logger.info("OpenRouter fallback succeeded with free model: %s", free_model)
+                        break
+                    except Exception as fb_err:
+                        logger.warning("Fallback model %s failed: %s", free_model, fb_err)
+                        last_fallback_error = fb_err
+                        continue
+                if response is None:
+                    raise last_fallback_error
 
         choice = response.choices[0] if response.choices else None
         text = (choice.message.content or "").strip() if choice and choice.message else ""
@@ -223,7 +258,8 @@ def related_news(country_name: str, limit: int = 6) -> list[dict]:
     if not api_key:
         return []
 
-    cache_key = f"sdg:news:{country_name}:{limit}"
+    safe_country = re.sub(r"[^a-zA-Z0-9_-]", "_", country_name)
+    cache_key = f"sdg_news_{safe_country}_{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -251,7 +287,8 @@ def related_news(country_name: str, limit: int = 6) -> list[dict]:
         articles = response.json().get("articles", [])
     except Exception as error:
         logger.warning("News unavailable for %s: %s", country_name, error)
-        cache.set(cache_key, [], 60 * 10)
+        cache_duration = 86400 if "401" in str(error) or "403" in str(error) else 60 * 10
+        cache.set(cache_key, [], cache_duration)
         return []
 
     news = [

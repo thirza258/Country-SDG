@@ -28,7 +28,8 @@ class SitemapTests(SimpleTestCase):
         self.assertEqual(response["Content-Type"], "application/xml")
         self.assertIn("no-cache", response["Cache-Control"])
         rows = entries(response)
-        self.assertEqual(len(rows), 2 + len(analytics.get_dataset().entities) + len(GOALS))
+        # 4 static pages (index, about, terms, privacy) + entities + goals
+        self.assertEqual(len(rows), 4 + len(analytics.get_dataset().entities) + len(GOALS))
         for name in analytics.get_dataset().entities:
             self.assertIn(unquote(reverse("country", args=[name])), rows)
         for goal in GOALS:
@@ -80,7 +81,8 @@ class SitemapTests(SimpleTestCase):
             for row in xml.findall("s:url", NS)
             if row.find("s:priority", NS) is not None
         }
-        self.assertEqual(len(priorities), 2 + len(analytics.get_dataset().entities) + len(GOALS))
+        # 4 static pages (index, about, terms, privacy) + entities + goals
+        self.assertEqual(len(priorities), 4 + len(analytics.get_dataset().entities) + len(GOALS))
         self.assertEqual(priorities["/"], "1.0")
         self.assertEqual(priorities["/about/"], "0.8")
         self.assertEqual(priorities["/goal/1/"], "0.8")
